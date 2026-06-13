@@ -1,8 +1,12 @@
 "use client";
 
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Search, User, Activity, Play, Loader2 } from "lucide-react";
 import { DEMO_INCIDENT } from "@/lib/mock-data";
-import { Badge } from "@/components/ui/Badge";
+import { CyberBadge } from "@/components/cyber/CyberPanel";
+import { NeonButton } from "@/components/ui/NeonButton";
+import { useNeuralOpsStore } from "@/store/neural-ops";
+import { useRunLiveDemo } from "@/providers/DemoRealtimeProvider";
+import { LIVE_STATUSES } from "@/lib/constants";
 
 interface TopNavProps {
   title: string;
@@ -10,24 +14,60 @@ interface TopNavProps {
 }
 
 export function TopNav({ title, subtitle }: TopNavProps) {
+  const { liveStatus, demoRunning, incidentCount } = useNeuralOpsStore();
+  const runLiveDemo = useRunLiveDemo();
+  const status = LIVE_STATUSES[liveStatus as keyof typeof LIVE_STATUSES];
+
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-neural-panel/50 px-6 backdrop-blur-xl">
-      <div>
-        <h1 className="text-lg font-semibold text-white">{title}</h1>
-        {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+    <header className="glass-premium flex h-11 shrink-0 items-center justify-between border-b border-cyan-500/15 px-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display truncate text-sm font-semibold tracking-wide text-white">{title}</h1>
+          {subtitle && <p className="truncate font-mono text-[11px] text-slate-400">{subtitle}</p>}
+        </div>
+        {status && (
+          <CyberBadge
+            label={status.label}
+            variant={status.color as "red" | "amber" | "violet" | "cyan"}
+            pulse
+          />
+        )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <Badge label={DEMO_INCIDENT.id} severity={DEMO_INCIDENT.severity} dot />
-        <button type="button" className="rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
-          <Search className="h-4 w-4" />
+      <div className="flex items-center gap-2">
+        <NeonButton
+          size="sm"
+          variant={demoRunning ? "secondary" : "primary"}
+          onClick={runLiveDemo}
+          disabled={demoRunning}
+          className="hidden font-mono text-[10px] uppercase tracking-wider sm:flex"
+        >
+          {demoRunning ? (
+            <>
+              <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+              Demo Running
+            </>
+          ) : (
+            <>
+              <Play className="mr-1.5 h-3 w-3" />
+              Run Live Demo
+            </>
+          )}
+        </NeonButton>
+        <CyberBadge label={DEMO_INCIDENT.id} variant="red" />
+        <div className="hidden items-center gap-1 font-mono text-[11px] font-medium text-slate-400 md:flex">
+          <Activity className="h-3 w-3 text-emerald-400" />
+          LIVE · {incidentCount} incidents
+        </div>
+        <button type="button" className="rounded border border-transparent p-1.5 text-slate-500 transition hover:border-cyan-500/20 hover:text-cyan-400">
+          <Search className="h-3.5 w-3.5" />
         </button>
-        <button type="button" className="relative rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+        <button type="button" className="relative rounded border border-transparent p-1.5 text-slate-500 transition hover:border-cyan-500/20 hover:text-cyan-400">
+          <Bell className="h-3.5 w-3.5" />
+          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
         </button>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-500/30 bg-cyan-500/10">
-          <User className="h-4 w-4 text-cyan-400" />
+        <div className="flex h-7 w-7 items-center justify-center rounded border border-cyan-500/20 bg-cyan-500/5">
+          <User className="h-3.5 w-3.5 text-cyan-400" />
         </div>
       </div>
     </header>
