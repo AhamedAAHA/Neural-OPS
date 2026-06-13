@@ -11,14 +11,14 @@ interface GlassCardProps {
 }
 
 const glowMap = {
-  cyan: "shadow-[0_0_30px_rgba(34,211,238,0.08)]",
-  violet: "shadow-[0_0_30px_rgba(167,139,250,0.08)]",
-  red: "shadow-[0_0_30px_rgba(248,113,113,0.08)]",
-  emerald: "shadow-[0_0_30px_rgba(52,211,153,0.08)]",
+  cyan: "border-cyan-500/25 shadow-[0_0_32px_rgba(34,211,238,0.1)]",
+  violet: "border-violet-500/25 shadow-[0_0_32px_rgba(139,92,246,0.1)]",
+  red: "border-red-500/25 shadow-[0_0_32px_rgba(239,68,68,0.1)]",
+  emerald: "border-emerald-500/25 shadow-[0_0_32px_rgba(16,185,129,0.1)]",
   none: "",
 };
 
-export function GlassCard({ children, className, glow = "none", hover = false, onClick }: GlassCardProps) {
+export function GlassCard({ children, className, glow = "none", hover = true, onClick }: GlassCardProps) {
   return (
     <div
       onClick={onClick}
@@ -26,9 +26,9 @@ export function GlassCard({ children, className, glow = "none", hover = false, o
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
       className={cn(
-        "glass gradient-border relative overflow-hidden rounded-xl",
+        "glass-premium hud-panel scanlines relative overflow-hidden rounded-xl",
         glowMap[glow],
-        hover && "transition-all duration-300 hover:border-cyan-500/30 hover:bg-white/[0.05]",
+        hover && "transition-all duration-300 hover:border-cyan-400/35",
         className
       )}
     >
