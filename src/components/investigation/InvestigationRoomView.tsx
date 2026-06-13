@@ -3,21 +3,17 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppShell } from "@/components/layout/AppShell";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { Badge } from "@/components/ui/Badge";
+import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
+import { JsonViewer } from "@/components/cyber/JsonViewer";
 import { NeonButton } from "@/components/ui/NeonButton";
 import { ApprovalModal } from "@/components/ui/ApprovalModal";
-import { AGENTS, BAND_MESSAGES, DEMO_INCIDENT, APPROVAL_REQUEST } from "@/lib/mock-data";
+import { AGENTS, DEMO_INCIDENT, APPROVAL_REQUEST } from "@/lib/mock-data";
 import { formatTimestamp, messageTypeColor } from "@/lib/utils";
+import { useNeuralOpsStore } from "@/store/neural-ops";
+import { useRealtime } from "@/hooks/useRealtime";
 import {
-  Bot,
-  UserPlus,
-  FileSearch,
-  Scale,
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle,
-  Clock,
+  Bot, UserPlus, FileSearch, Scale, AlertTriangle, ArrowRight,
+  CheckCircle, Clock, Mic, Cpu, ChevronRight,
 } from "lucide-react";
 
 const MESSAGE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -27,153 +23,169 @@ const MESSAGE_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   RISK_UPDATE: AlertTriangle,
   DECISION: CheckCircle,
   TASK_HANDOFF: ArrowRight,
+  VOICE_COMMAND: Mic,
+};
+
+const MODEL_BADGES: Record<string, string> = {
+  CONTEXT_SHARE: "AIML",
+  EVIDENCE_SUBMISSION: "AIML",
+  AGENT_RECRUITMENT: "LOCAL",
+  RISK_UPDATE: "FEATHERLESS",
+  APPROVAL_REQUEST: "AIML",
+  REVIEW_REQUEST: "FEATHERLESS",
 };
 
 export function InvestigationRoomView() {
   const [approvalOpen, setApprovalOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<string | null>("ic");
+  const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState("ic");
+  const { liveStatus, bandMessages, activeAgentCount, evidenceCount, recruitedAgentIds } = useNeuralOpsStore();
+  useRealtime(DEMO_INCIDENT.id);
 
   const roomAgents = AGENTS.filter((a) =>
-    ["ic", "df", "id", "ff", "ca", "cp", "lg", "rs", "es", "au"].includes(a.id)
+    recruitedAgentIds.includes(a.id) || ["ic", "df", "id", "ff", "ca", "cp", "lg", "rs", "es", "au"].includes(a.id)
   );
 
   return (
-    <AppShell title="Investigation Room" subtitle={`${DEMO_INCIDENT.roomId} · Vendor ABC Suspected Fraud`}>
-      <div className="grid h-[calc(100vh-8rem)] grid-cols-12 gap-4">
-        {/* Agent Panel */}
-        <div className="col-span-3 space-y-3 overflow-y-auto">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Room Agents</h3>
-          {roomAgents.map((agent) => (
-            <motion.div
-              key={agent.id}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setSelectedAgent(agent.id)}
-            >
-              <GlassCard
-                glow={selectedAgent === agent.id ? "cyan" : "none"}
-                className="cursor-pointer p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-9 w-9 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: `${agent.color}20` }}
-                  >
-                    <Bot className="h-4 w-4" style={{ color: agent.color }} />
+    <AppShell title="Investigation Room" subtitle={`${DEMO_INCIDENT.roomId} · Vendor ABC Fraud · Band Live`} fullWidth>
+      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-2 p-2">
+        {/* Agents */}
+        <div className="col-span-2 flex flex-col gap-2 overflow-hidden">
+          <CyberPanel title="Room Agents" compact glow="cyan" className="flex-1 overflow-hidden">
+            <div className="space-y-1.5 overflow-y-auto max-h-[calc(100vh-12rem)]">
+              {roomAgents.map((agent) => (
+                <motion.button
+                  key={agent.id}
+                  type="button"
+                  whileHover={{ x: 2 }}
+                  onClick={() => setSelectedAgent(agent.id)}
+                  className={`w-full rounded border p-2 text-left transition-all ${
+                    selectedAgent === agent.id
+                      ? "glow-active border-cyan-500/40 bg-cyan-500/10"
+                      : "border-white/5 bg-white/[0.02] hover:border-cyan-500/20"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: agent.color, boxShadow: `0 0 6px ${agent.color}` }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-mono text-[10px] font-medium text-white">{agent.name}</div>
+                      <div className="font-mono text-[9px] capitalize text-slate-600">{agent.status}</div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white">{agent.name}</div>
-                    <div className="text-[10px] text-slate-500">{agent.role}</div>
-                  </div>
-                  <Badge label={agent.status} severity={agent.status === "waiting" ? "high" : agent.status === "active" ? "low" : "medium"} />
-                </div>
-              </GlassCard>
-            </motion.div>
-          ))}
+                </motion.button>
+              ))}
+            </div>
+          </CyberPanel>
+          <CyberPanel compact glow="amber">
+            <div className="flex items-center gap-2 font-mono text-[10px]">
+              <Clock className="h-3 w-3 text-amber-400" />
+              <span className="text-amber-400 uppercase">{liveStatus.replace(/_/g, " ")}</span>
+            </div>
+          </CyberPanel>
         </div>
 
-        {/* Band Message Stream */}
-        <div className="col-span-6 flex flex-col overflow-hidden">
-          <GlassCard className="flex flex-1 flex-col overflow-hidden">
-            <div className="border-b border-white/10 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Band Collaboration Stream</h3>
-                <Badge label="Live" severity="low" dot />
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {/* Band Stream */}
+        <div className="col-span-7 flex flex-col overflow-hidden">
+          <CyberPanel title="Band Collaboration Stream" subtitle="Real-time agent-to-agent messaging" glow="cyan" className="flex h-full flex-col" noPadding>
+            <div className="flex-1 space-y-2 overflow-y-auto p-3">
               <AnimatePresence>
-                {BAND_MESSAGES.map((msg, i) => {
+                {bandMessages.map((msg, i) => {
                   const Icon = MESSAGE_ICONS[msg.type] ?? Bot;
+                  const expanded = expandedMsg === msg.id;
                   return (
                     <motion.div
                       key={msg.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.08 }}
-                      className={`rounded-xl border p-4 ${messageTypeColor(msg.type)}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className={`glass-packet rounded-lg border p-3 ${messageTypeColor(msg.type)}`}
                     >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-cyan-400" />
-                          <span className="text-xs font-medium text-cyan-400">{msg.from}</span>
-                          <ArrowRight className="h-3 w-3 text-slate-600" />
-                          <span className="text-xs font-medium text-violet-400">{msg.to}</span>
-                        </div>
-                        <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] text-slate-500">{msg.type.replace(/_/g, " ")}</span>
-                      </div>
-                      <p className="text-sm text-slate-300">{msg.content}</p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-600">{formatTimestamp(msg.timestamp)}</span>
-                        {msg.metadata?.confidence && (
-                          <span className="text-[10px] text-emerald-400">Confidence: {msg.metadata.confidence}%</span>
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <Icon className="h-3.5 w-3.5 text-cyan-400" />
+                        <span className="font-mono text-[10px] text-cyan-400">{msg.from}</span>
+                        <ChevronRight className="h-3 w-3 text-slate-700" />
+                        <span className="font-mono text-[10px] text-violet-400">{msg.to}</span>
+                        <CyberBadge label={msg.type.replace(/_/g, " ")} variant="cyan" />
+                        {MODEL_BADGES[msg.type] && (
+                          <CyberBadge label={MODEL_BADGES[msg.type]} variant="violet" />
                         )}
+                        {msg.metadata?.confidence && (
+                          <CyberBadge label={`${msg.metadata.confidence}%`} variant="emerald" />
+                        )}
+                        <span className="ml-auto font-mono text-[9px] text-slate-600">{formatTimestamp(msg.timestamp)}</span>
                       </div>
-
-                      {msg.type === "APPROVAL_REQUEST" && (
-                        <div className="mt-3 flex gap-2">
-                          <NeonButton size="sm" onClick={() => setApprovalOpen(true)}>Review Approval</NeonButton>
+                      <p className="font-mono text-xs leading-relaxed text-slate-300">{msg.content}</p>
+                      {msg.type === "AGENT_RECRUITMENT" && (
+                        <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} className="mt-2 h-0.5 bg-gradient-to-r from-cyan-500 to-violet-500" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedMsg(expanded ? null : msg.id)}
+                        className="mt-2 font-mono text-[9px] text-cyan-500/70 hover:text-cyan-400"
+                      >
+                        {expanded ? "▲ hide context" : "▼ view structured context"}
+                      </button>
+                      {expanded && (
+                        <div className="mt-2">
+                          <JsonViewer data={{ messageType: msg.type, from: msg.from, to: msg.to, content: msg.content, metadata: msg.metadata }} height="120px" />
                         </div>
+                      )}
+                      {msg.type === "APPROVAL_REQUEST" && (
+                        <NeonButton size="sm" className="mt-2" onClick={() => setApprovalOpen(true)}>Review Approval Terminal</NeonButton>
                       )}
                     </motion.div>
                   );
                 })}
               </AnimatePresence>
             </div>
-          </GlassCard>
+          </CyberPanel>
         </div>
 
-        {/* Evidence & Status */}
-        <div className="col-span-3 space-y-3 overflow-y-auto">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Evidence & Status</h3>
-
-          <GlassCard glow="violet" className="p-4">
-            <div className="mb-2 text-xs text-slate-500">Investigation Progress</div>
-            <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/5">
-              <div className="h-full w-[85%] rounded-full bg-gradient-to-r from-cyan-500 to-violet-500" />
-            </div>
-            <div className="text-xs text-slate-400">85% complete · Awaiting human approval</div>
-          </GlassCard>
-
-          <GlassCard className="p-4">
-            <div className="mb-3 text-xs font-semibold text-slate-500">KEY EVIDENCE</div>
+        {/* Evidence + Handoffs */}
+        <div className="col-span-3 flex flex-col gap-2 overflow-hidden">
+          <CyberPanel title="Task Handoffs" compact glow="violet">
             {[
-              { label: "Suspicious Invoice #INV-9847", risk: "critical" },
-              { label: "Privilege abuse confirmed", risk: "high" },
-              { label: "Email coordination thread", risk: "high" },
-              { label: "GDPR/SOC2 violations", risk: "high" },
-            ].map((ev) => (
-              <div key={ev.label} className="mb-2 flex items-center justify-between rounded-lg bg-white/[0.02] p-2">
-                <span className="text-xs text-slate-300">{ev.label}</span>
-                <Badge label={ev.risk} severity={ev.risk} />
+              { from: "Incident Commander", to: "Digital Forensics", task: "Analyze login trail" },
+              { from: "Financial Forensics", to: "Communication Analysis", task: "Build email timeline" },
+              { from: "Compliance Agent", to: "Legal Agent", task: "Review violations" },
+            ].map((h) => (
+              <div key={h.task} className="glass-packet mb-2 rounded border border-violet-500/20 p-2 last:mb-0">
+                <div className="font-mono text-[9px] text-violet-400">{h.from} → {h.to}</div>
+                <div className="font-mono text-[10px] text-slate-400">{h.task}</div>
               </div>
             ))}
-          </GlassCard>
+          </CyberPanel>
 
-          <GlassCard glow="red" className="p-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-red-400">
-              <Clock className="h-4 w-4" />
-              Escalation Path
+          <CyberPanel title="Evidence Queue" compact glow="emerald" className="flex-1 overflow-hidden">
+            <div className="space-y-1.5 overflow-y-auto">
+              {[
+                { title: "Suspicious Invoice #INV-9847", conf: 92, agent: "Financial Forensics" },
+                { title: "Privilege abuse confirmed", conf: 94, agent: "Identity Investigation" },
+                { title: "Email coordination thread", conf: 89, agent: "Communication Analysis" },
+                { title: "GDPR/SOC2 violations", conf: 98, agent: "Compliance Agent" },
+              ].map((ev) => (
+                <div key={ev.title} className="glass-packet rounded border border-emerald-500/20 p-2">
+                  <div className="font-mono text-[10px] text-white">{ev.title}</div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="font-mono text-[9px] text-slate-500">{ev.agent}</span>
+                    <CyberBadge label={`${ev.conf}%`} variant="emerald" />
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="mt-2 space-y-1 text-xs text-slate-400">
-              <div>→ Legal Agent review</div>
-              <div>→ Human Executive approval</div>
-              <div>→ Executive Strategy decision</div>
-            </div>
-          </GlassCard>
+          </CyberPanel>
 
-          <NeonButton href="/evidence" className="w-full" variant="secondary" size="sm">
-            View Evidence Graph
-          </NeonButton>
+          <CyberPanel compact>
+            <div className="flex items-center gap-2">
+              <Cpu className="h-3 w-3 text-cyan-400" />
+              <span className="font-mono text-[11px] text-slate-300">{activeAgentCount} agents · {bandMessages.length} Band messages · {evidenceCount} evidence items</span>
+            </div>
+            <NeonButton href="/evidence" size="sm" variant="secondary" className="mt-2 w-full">Open Evidence Graph</NeonButton>
+          </CyberPanel>
         </div>
       </div>
 
-      <ApprovalModal
-        request={APPROVAL_REQUEST}
-        open={approvalOpen}
-        onClose={() => setApprovalOpen(false)}
-        onAction={() => setApprovalOpen(false)}
-      />
+      <ApprovalModal request={APPROVAL_REQUEST} open={approvalOpen} onClose={() => setApprovalOpen(false)} onAction={() => setApprovalOpen(false)} />
     </AppShell>
   );
 }
