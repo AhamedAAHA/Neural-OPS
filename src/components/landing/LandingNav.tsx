@@ -7,28 +7,26 @@ import { NeonButton } from "@/components/ui/NeonButton";
 
 export function LandingNav() {
   return (
-    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/5 bg-neural-bg/60 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <nav className="glass-premium fixed left-0 right-0 top-0 z-50 border-b border-cyan-500/15">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
-          <Radio className="h-5 w-5 text-cyan-400" />
-          <span className="font-bold tracking-wide text-white">{APP_NAME}</span>
+          <Radio className="h-4 w-4 text-cyan-400" />
+          <span className="font-display text-sm font-bold tracking-wider text-white">{APP_NAME}</span>
         </Link>
-        <div className="hidden items-center gap-6 md:flex">
-          <Link href="/command-center" className="text-sm text-slate-400 transition hover:text-white">
-            Command Center
-          </Link>
-          <Link href="/investigation" className="text-sm text-slate-400 transition hover:text-white">
-            Investigation
-          </Link>
-          <Link href="/evidence" className="text-sm text-slate-400 transition hover:text-white">
-            Evidence
-          </Link>
-          <Link href="/agents" className="text-sm text-slate-400 transition hover:text-white">
-            Agents
-          </Link>
+        <div className="hidden items-center gap-5 md:flex">
+          {[
+            { href: "/command-center", label: "Command Center" },
+            { href: "/investigation", label: "Investigation" },
+            { href: "/voice", label: "Voice" },
+            { href: "/evidence", label: "Evidence" },
+          ].map((link) => (
+            <Link key={link.href} href={link.href} className="font-mono text-[11px] uppercase tracking-wider text-slate-500 transition hover:text-cyan-400">
+              {link.label}
+            </Link>
+          ))}
         </div>
-        <NeonButton href="/command-center" size="sm">
-          Launch Command Center
+        <NeonButton href="/command-center" size="sm" className="font-mono text-[10px] uppercase">
+          &gt; Launch SOC
         </NeonButton>
       </div>
     </nav>
