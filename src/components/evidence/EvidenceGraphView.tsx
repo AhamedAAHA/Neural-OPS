@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -14,39 +14,33 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { AppShell } from "@/components/layout/AppShell";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { Badge } from "@/components/ui/Badge";
+import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
+import { JsonViewer } from "@/components/cyber/JsonViewer";
 import { EVIDENCE_NODES, EVIDENCE_EDGES } from "@/lib/mock-data";
-import { formatTimestamp, severityBg } from "@/lib/utils";
+import { EVIDENCE_FILTERS } from "@/lib/constants";
+import { formatTimestamp } from "@/lib/utils";
 import type { EvidenceNode } from "@/lib/types";
 
 const EDGE_COLORS: Record<string, string> = {
-  approved: "#34d399",
-  paid: "#f87171",
-  accessed: "#a78bfa",
-  contacted: "#22d3ee",
-  compromised: "#ef4444",
-  escalated: "#fb923c",
-  reviewed: "#94a3b8",
-  violated: "#f97316",
-  "linked-to": "#818cf8",
+  approved: "#10b981", paid: "#ef4444", accessed: "#8b5cf6", contacted: "#22d3ee",
+  compromised: "#ef4444", escalated: "#f59e0b", reviewed: "#64748b", violated: "#f97316", "linked-to": "#6366f1",
+};
+
+const FILTER_MAP: Record<string, string[]> = {
+  Financial: ["invoice", "payment-gw", "vendor-abc", "finance-mgr"],
+  Identity: ["login", "admin", "device", "finance-mgr"],
+  Compliance: ["policy", "records", "legal"],
+  Communication: ["email"],
+  Network: ["firewall", "cloud-db", "device"],
+  Legal: ["legal", "policy"],
 };
 
 function layoutNodes(): Node[] {
   const positions: Record<string, { x: number; y: number }> = {
-    "vendor-abc": { x: 400, y: 50 },
-    invoice: { x: 200, y: 150 },
-    "finance-mgr": { x: 50, y: 250 },
-    "payment-gw": { x: 350, y: 200 },
-    email: { x: 150, y: 350 },
-    "cloud-db": { x: 550, y: 200 },
-    login: { x: 50, y: 450 },
-    device: { x: 200, y: 500 },
-    admin: { x: 350, y: 400 },
-    records: { x: 550, y: 350 },
-    firewall: { x: 700, y: 100 },
-    policy: { x: 650, y: 450 },
-    legal: { x: 500, y: 550 },
+    "vendor-abc": { x: 400, y: 50 }, invoice: { x: 200, y: 150 }, "finance-mgr": { x: 50, y: 250 },
+    "payment-gw": { x: 350, y: 200 }, email: { x: 150, y: 350 }, "cloud-db": { x: 550, y: 200 },
+    login: { x: 50, y: 450 }, device: { x: 200, y: 500 }, admin: { x: 350, y: 400 },
+    records: { x: 550, y: 350 }, firewall: { x: 700, y: 100 }, policy: { x: 650, y: 450 }, legal: { x: 500, y: 550 },
   };
 
   return EVIDENCE_NODES.map((node) => ({
@@ -54,14 +48,19 @@ function layoutNodes(): Node[] {
     position: positions[node.id] ?? { x: 0, y: 0 },
     data: { label: node.label, node },
     style: {
-      background: "rgba(10, 15, 30, 0.9)",
-      border: `1px solid ${node.riskLevel === "critical" ? "#f87171" : node.riskLevel === "high" ? "#fb923c" : "#22d3ee40"}`,
+      background: "rgba(5, 12, 28, 0.72)",
+      backdropFilter: "blur(12px)",
+      border: `1px solid ${node.riskLevel === "critical" ? "rgba(239,68,68,0.45)" : node.riskLevel === "high" ? "rgba(245,158,11,0.4)" : "rgba(34,211,238,0.28)"}`,
       borderRadius: "8px",
       padding: "8px 12px",
       color: "#e2e8f0",
-      fontSize: "11px",
-      minWidth: "100px",
+      fontSize: "10px",
+      fontFamily: "JetBrains Mono, monospace",
+      minWidth: "90px",
       textAlign: "center" as const,
+      boxShadow: node.riskLevel === "critical"
+        ? "0 0 16px rgba(239,68,68,0.25), inset 0 0 12px rgba(239,68,68,0.05)"
+        : "0 0 20px rgba(34,211,238,0.08), inset 0 0 12px rgba(34,211,238,0.04)",
     },
   }));
 }
@@ -72,9 +71,9 @@ function layoutEdges(): Edge[] {
     source: edge.source,
     target: edge.target,
     label: edge.label,
-    animated: edge.label === "compromised" || edge.label === "paid",
+    animated: ["compromised", "paid", "violated"].includes(edge.label),
     style: { stroke: EDGE_COLORS[edge.label] ?? "#64748b", strokeWidth: 2 },
-    labelStyle: { fill: "#94a3b8", fontSize: 10 },
+    labelStyle: { fill: "#94a3b8", fontSize: 9, fontFamily: "JetBrains Mono" },
     markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLORS[edge.label] ?? "#64748b" },
   }));
 }
@@ -83,23 +82,62 @@ export function EvidenceGraphView() {
   const [nodes, , onNodesChange] = useNodesState(layoutNodes());
   const [edges, , onEdgesChange] = useEdgesState(layoutEdges());
   const [selected, setSelected] = useState<EvidenceNode | null>(null);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [timeline, setTimeline] = useState(100);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    const evidenceNode = (node.data as { node: EvidenceNode }).node;
-    setSelected(evidenceNode);
+    setSelected((node.data as { node: EvidenceNode }).node);
   }, []);
 
-  const connectedAgents = useMemo(() => {
-    if (!selected) return [];
-    return EVIDENCE_EDGES.filter((e) => e.source === selected.id || e.target === selected.id).map((e) => e.label);
-  }, [selected]);
+  const filteredNodeIds = activeFilter ? FILTER_MAP[activeFilter] ?? [] : null;
 
   return (
-    <AppShell title="Evidence Graph" subtitle="Interactive agent-connected evidence map · Vendor ABC Fraud" fullWidth>
-      <div className="flex h-[calc(100vh-4rem)]">
-        <div className="flex-1">
+    <AppShell title="Evidence Graph" subtitle="Interactive agent-connected evidence · Vendor ABC Fraud" fullWidth>
+      <div className="flex h-[calc(100vh-5.5rem)] gap-2 p-2">
+        <div className="flex w-48 shrink-0 flex-col gap-2">
+          <CyberPanel title="Filters" compact glow="cyan">
+            <button
+              type="button"
+              onClick={() => setActiveFilter(null)}
+              className={`mb-1 w-full rounded border p-1.5 font-mono text-[9px] ${!activeFilter ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400" : "border-white/5 text-slate-600"}`}
+            >
+              ALL
+            </button>
+            {EVIDENCE_FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setActiveFilter(f)}
+                className={`mb-1 w-full rounded border p-1.5 font-mono text-[9px] last:mb-0 ${
+                  activeFilter === f ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400" : "border-white/5 text-slate-600 hover:border-cyan-500/20"
+                }`}
+              >
+                {f.toUpperCase()}
+              </button>
+            ))}
+          </CyberPanel>
+          <CyberPanel title="Timeline" compact glow="violet">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={timeline}
+              onChange={(e) => setTimeline(Number(e.target.value))}
+              className="w-full accent-cyan-500"
+            />
+            <div className="mt-1 font-mono text-[9px] text-slate-600">Evidence at T+{timeline}%</div>
+          </CyberPanel>
+        </div>
+
+        <div className="min-w-0 flex-1 rounded-lg border border-cyan-500/10">
           <ReactFlow
-            nodes={nodes}
+            nodes={nodes.map((n) => ({
+              ...n,
+              style: {
+                ...n.style,
+                opacity: filteredNodeIds && !filteredNodeIds.includes(n.id) ? 0.25 : 1,
+              },
+            }))}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
@@ -107,67 +145,37 @@ export function EvidenceGraphView() {
             fitView
             className="bg-neural-bg"
           >
-            <Background color="#1e293b" gap={20} />
-            <Controls className="!bg-neural-panel !border-white/10 !fill-slate-400" />
+            <Background color="#1e293b" gap={24} size={1} />
+            <Controls className="!bg-neural-surface !border-cyan-500/20" />
             <MiniMap
               nodeColor={(n) => {
                 const risk = (n.data as { node: EvidenceNode }).node.riskLevel;
-                return risk === "critical" ? "#f87171" : risk === "high" ? "#fb923c" : "#22d3ee";
+                return risk === "critical" ? "#ef4444" : risk === "high" ? "#f59e0b" : "#22d3ee";
               }}
-              className="!bg-neural-panel !border-white/10"
+              className="!bg-neural-surface !border-cyan-500/20"
             />
           </ReactFlow>
         </div>
 
-        <div className="w-80 shrink-0 overflow-y-auto border-l border-white/10 bg-neural-panel/50 p-4">
+        <div className="w-72 shrink-0 overflow-y-auto">
           {selected ? (
-            <GlassCard glow="cyan" className="p-4">
-              <h3 className="mb-3 text-lg font-semibold text-white">{selected.label}</h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-slate-500">Type: </span>
-                  <span className="text-slate-300 capitalize">{selected.type}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">Confidence: </span>
-                  <span className="font-bold text-emerald-400">{selected.confidence}%</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">Source Agent: </span>
-                  <span className="text-cyan-400">{selected.sourceAgent}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">Timestamp: </span>
-                  <span className="text-slate-400">{formatTimestamp(selected.timestamp)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">Risk: </span>
-                  <Badge label={selected.riskLevel} severity={selected.riskLevel} />
-                </div>
-                <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-xs text-slate-400">
-                  {selected.description}
-                </div>
-                {connectedAgents.length > 0 && (
-                  <div>
-                    <span className="text-slate-500">Connections: </span>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {connectedAgents.map((c) => (
-                        <span key={c} className={`rounded px-2 py-0.5 text-[10px] ${severityBg("low")}`}>{c}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            <CyberPanel glow="cyan" title="Evidence Detail">
+              <h3 className="font-mono text-sm font-bold text-white">{selected.label}</h3>
+              <div className="mt-3 space-y-2 font-mono text-[10px]">
+                <div><span className="text-slate-600">Confidence </span><span className="text-emerald-400">{selected.confidence}%</span></div>
+                <div><span className="text-slate-600">Agent </span><span className="text-cyan-400">{selected.sourceAgent}</span></div>
+                <div><span className="text-slate-600">Time </span><span className="text-slate-400">{formatTimestamp(selected.timestamp)}</span></div>
+                <CyberBadge label={selected.riskLevel} variant={selected.riskLevel === "critical" ? "red" : "amber"} />
+                <p className="text-slate-500">{selected.description}</p>
               </div>
-            </GlassCard>
+              <div className="mt-3">
+                <JsonViewer data={selected} height="140px" />
+              </div>
+            </CyberPanel>
           ) : (
-            <GlassCard className="p-4 text-center">
-              <div className="text-sm text-slate-500">Click a node to view evidence details</div>
-              <div className="mt-4 space-y-2 text-left text-xs text-slate-600">
-                <div>13 evidence nodes connected by agents</div>
-                <div>9 relationship types mapped</div>
-                <div>Vendor ABC fraud investigation</div>
-              </div>
-            </GlassCard>
+            <CyberPanel>
+              <p className="font-mono text-[10px] text-slate-600">Select a node to view evidence details, confidence score, and source agent.</p>
+            </CyberPanel>
           )}
         </div>
       </div>
