@@ -179,9 +179,11 @@ export function ThreatGlobeScene() {
         <ServerNode position={[0, -3, 1.5]} color="#f87171" label="Threat" />
         <ServerNode position={[2, 2.5, -2]} color="#a78bfa" label="Forensics" />
 
-        <BandMessagePanel position={[2.5, 1.5, 0]} text="Forensics → Compliance: Evidence shared" />
-        <BandMessagePanel position={[-2.5, 1, 1]} text="Risk → Executive: High risk alert" />
-        <BandMessagePanel position={[0, 2.8, -1]} text="Legal → Human: Approval required" />
+        <BandMessagePanel position={[2.5, 1.5, 0]} text="Commander recruited Digital Forensics Agent" />
+        <BandMessagePanel position={[-2.5, 1, 1]} text="Compliance requested Legal review" />
+        <BandMessagePanel position={[0, 2.8, -1]} text="Risk calculated 87/100 severity" />
+        <BandMessagePanel position={[-1.8, -1.5, 2]} text="Legal → Human: Approval required" />
+        <BandMessagePanel position={[1.5, -2, -1.5]} text="Forensics → Compliance: Evidence shared" />
       </group>
     </>
   );
