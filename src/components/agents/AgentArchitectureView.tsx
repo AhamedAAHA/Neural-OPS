@@ -121,12 +121,16 @@ export function AgentArchitectureView() {
 
         {/* Main */}
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-5">
-          <CyberPanel title="Agent Network Map" glow="cyan" noPadding hover={false} className="relative flex min-h-[320px] flex-col overflow-hidden lg:col-span-2 lg:min-h-0">
-            <div className="relative min-h-0 flex-1">
-              <AgentNetworkCanvas className="absolute inset-0 h-full w-full">
-                <AgentNetworkScene />
-              </AgentNetworkCanvas>
+          <div className="relative h-full min-h-0 overflow-hidden rounded-lg border border-cyan-500/25 glass-premium lg:col-span-2">
+            <div className="absolute inset-x-0 top-0 z-10 border-b border-cyan-500/10 bg-[rgba(5,12,28,0.8)] px-3 py-2 backdrop-blur-sm">
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-400">
+                Agent Network Map
+              </h3>
             </div>
+            <AgentNetworkCanvas className="absolute inset-0 h-full w-full">
+              <AgentNetworkScene />
+            </AgentNetworkCanvas>
+            <div className="pointer-events-none absolute inset-0 rounded-lg border border-cyan-500/10" />
             <div className="absolute bottom-2 left-2 z-10 flex flex-col gap-1">
               <div className="flex items-center gap-2 border border-cyan-500/20 bg-[#020617]/90 px-2 py-1 text-[10px] text-cyan-300">
                 <Radio className="h-3 w-3 text-emerald-400" />
@@ -136,7 +140,7 @@ export function AgentArchitectureView() {
                 Scroll to zoom · Drag to rotate
               </span>
             </div>
-          </CyberPanel>
+          </div>
 
           <div className="min-h-0 space-y-1.5 overflow-y-auto lg:col-span-3">
             {AGENT_TIERS.map((tier, i) => {
@@ -168,39 +172,6 @@ export function AgentArchitectureView() {
               );
             })}
           </div>
-        </div>
-
-        {/* Bottom terminal panels */}
-        <div className="grid shrink-0 gap-2 md:grid-cols-3">
-          <CyberPanel title="Recruitment Flow" glow="violet" compact hover={false}>
-            <pre className="whitespace-pre-wrap text-[9px] leading-relaxed text-slate-500">
-{`> voice.intent_classifier
-> band.room.create()
-> commander.recruit(specialists)
-> evidence.trigger_agents()
-> governance.auto_join()`}
-            </pre>
-          </CyberPanel>
-
-          <CyberPanel title="Band Topology" glow="cyan" compact hover={false}>
-            <pre className="text-[9px] leading-relaxed text-slate-500">
-{`     [CMD]
-   /  |  \\
- AGT AGT AGT
-  |    |    |
- HUB ← BAND → HUB
- 8 msg types · hub-spoke`}
-            </pre>
-          </CyberPanel>
-
-          <CyberPanel title="Collaboration Protocol" glow="emerald" compact hover={false}>
-            <div className="space-y-1 text-[9px] text-slate-500">
-              <div><span className="text-emerald-500/80">CTX_SHARE</span> · agent context broadcast</div>
-              <div><span className="text-cyan-500/80">TASK_HANDOFF</span> · specialist routing</div>
-              <div><span className="text-violet-500/80">EVIDENCE</span> · structured submission</div>
-              <div><span className="text-red-500/80">APPROVAL</span> · human-in-the-loop gate</div>
-            </div>
-          </CyberPanel>
         </div>
       </div>
     </AppShell>
