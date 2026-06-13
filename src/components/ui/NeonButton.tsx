@@ -10,6 +10,7 @@ interface NeonButtonProps {
   size?: "sm" | "md" | "lg";
   children: React.ReactNode;
   className?: string;
+  disabled?: boolean;
 }
 
 const variants = {
@@ -25,15 +26,16 @@ const sizes = {
   lg: "px-8 py-3.5 text-base",
 };
 
-export function NeonButton({ href, onClick, variant = "primary", size = "md", children, className }: NeonButtonProps) {
+export function NeonButton({ href, onClick, variant = "primary", size = "md", children, className, disabled }: NeonButtonProps) {
   const classes = cn(
     "inline-flex items-center justify-center gap-2 rounded-lg border font-medium transition-all duration-300",
     variants[variant],
     sizes[size],
+    disabled && "pointer-events-none opacity-50",
     className
   );
 
-  if (href) {
+  if (href && !disabled) {
     return (
       <Link href={href} className={classes}>
         {children}
@@ -42,7 +44,7 @@ export function NeonButton({ href, onClick, variant = "primary", size = "md", ch
   }
 
   return (
-    <button type="button" onClick={onClick} className={classes}>
+    <button type="button" onClick={onClick} disabled={disabled} className={classes}>
       {children}
     </button>
   );
