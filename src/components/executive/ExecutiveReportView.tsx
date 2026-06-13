@@ -1,30 +1,25 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { Badge } from "@/components/ui/Badge";
+import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { NeonButton } from "@/components/ui/NeonButton";
 import { DEMO_INCIDENT, TIMELINE, BAND_MESSAGES, COMPLIANCE_FINDINGS } from "@/lib/mock-data";
 import { formatTimestamp } from "@/lib/utils";
-import { Download, FileText, Clock, Shield, Scale, DollarSign, TrendingDown, CheckCircle, Bot } from "lucide-react";
+import { Download, Shield, Scale, DollarSign, TrendingDown, CheckCircle, Bot } from "lucide-react";
 
 export function ExecutiveReportView() {
   return (
     <AppShell title="Executive Report" subtitle={`${DEMO_INCIDENT.id} · Vendor ABC Suspected Fraud`}>
-      <div className="mb-6 flex items-center justify-between">
-        <Badge label="CONFIDENTIAL" severity="critical" />
-        <NeonButton size="sm">
-          <Download className="h-4 w-4" /> Export Report
+      <div className="mb-3 flex items-center justify-between">
+        <CyberBadge label="CONFIDENTIAL" variant="red" pulse />
+        <NeonButton size="sm" className="font-mono text-[10px] uppercase">
+          <Download className="h-4 w-4" /> Export PDF
         </NeonButton>
       </div>
 
       <div className="space-y-6">
         {/* Summary */}
-        <GlassCard glow="cyan" className="p-6">
-          <div className="mb-4 flex items-center gap-3">
-            <FileText className="h-6 w-6 text-cyan-400" />
-            <h2 className="text-xl font-bold text-white">Incident Summary</h2>
-          </div>
+        <CyberPanel glow="cyan" title="Incident Summary">
           <div className="grid gap-4 md:grid-cols-4">
             <div>
               <div className="text-xs text-slate-500">Incident</div>
@@ -40,7 +35,7 @@ export function ExecutiveReportView() {
             </div>
             <div>
               <div className="text-xs text-slate-500">Status</div>
-              <Badge label="Pending Approval" severity="high" dot />
+              <CyberBadge label="Pending Approval" variant="red" pulse />
             </div>
           </div>
           <p className="mt-4 text-sm leading-relaxed text-slate-400">
@@ -48,15 +43,11 @@ export function ExecutiveReportView() {
             Finance Manager credentials were used for unauthorized approval. Fraud probability assessed at 91% with estimated
             total exposure of $2.4M. GDPR breach notification may be required.
           </p>
-        </GlassCard>
+        </CyberPanel>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Timeline */}
-          <GlassCard className="p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-violet-400" />
-              <h3 className="font-semibold text-white">Investigation Timeline</h3>
-            </div>
+          <CyberPanel title="Investigation Timeline" glow="violet">
             <div className="space-y-3">
               {TIMELINE.map((event) => (
                 <div key={event.id} className="flex gap-3 border-l-2 border-cyan-500/30 pl-4">
@@ -68,11 +59,10 @@ export function ExecutiveReportView() {
                 </div>
               ))}
             </div>
-          </GlassCard>
+          </CyberPanel>
 
           {/* Impact Assessment */}
-          <GlassCard className="p-6">
-            <h3 className="mb-4 font-semibold text-white">Impact Assessment</h3>
+          <CyberPanel title="Impact Assessment" glow="amber">
             <div className="grid grid-cols-2 gap-4">
               {[
                 { icon: DollarSign, label: "Financial Impact", value: "$2.4M", color: "text-red-400" },
@@ -87,20 +77,19 @@ export function ExecutiveReportView() {
                 </div>
               ))}
             </div>
-          </GlassCard>
+          </CyberPanel>
         </div>
 
         {/* Compliance Findings */}
-        <GlassCard className="p-6">
-          <h3 className="mb-4 font-semibold text-white">Compliance Findings</h3>
+        <CyberPanel title="Compliance Findings" glow="cyan">
           <div className="grid gap-4 md:grid-cols-2">
             {COMPLIANCE_FINDINGS.map((finding) => (
               <div key={finding.framework} className="rounded-lg border border-white/5 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="font-medium text-white">{finding.framework}</span>
-                  <Badge
+                  <CyberBadge
                     label={finding.status.replace("_", " ")}
-                    severity={finding.status === "violation" ? "critical" : finding.status === "at_risk" ? "high" : "low"}
+                    variant={finding.status === "violation" ? "red" : finding.status === "at_risk" ? "amber" : "emerald"}
                   />
                 </div>
                 <ul className="space-y-1">
@@ -111,13 +100,12 @@ export function ExecutiveReportView() {
               </div>
             ))}
           </div>
-        </GlassCard>
+        </CyberPanel>
 
         {/* Recommended Actions */}
-        <GlassCard glow="emerald" className="p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-emerald-400" />
-            <h3 className="font-semibold text-white">Recommended Actions</h3>
+        <CyberPanel title="Recommended Actions" glow="emerald">
+          <div className="mb-2 flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="grid gap-2 md:grid-cols-2">
             {[
@@ -134,13 +122,12 @@ export function ExecutiveReportView() {
               </div>
             ))}
           </div>
-        </GlassCard>
+        </CyberPanel>
 
         {/* Agent Collaboration History */}
-        <GlassCard className="p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Bot className="h-5 w-5 text-cyan-400" />
-            <h3 className="font-semibold text-white">Agent Collaboration History</h3>
+        <CyberPanel title="Agent Collaboration History" glow="violet">
+          <div className="mb-2 flex items-center gap-2">
+            <Bot className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="space-y-2">
             {BAND_MESSAGES.slice(0, 6).map((msg) => (
@@ -153,25 +140,23 @@ export function ExecutiveReportView() {
               </div>
             ))}
           </div>
-        </GlassCard>
+        </CyberPanel>
 
         {/* Approval History & Audit Trail */}
         <div className="grid gap-6 lg:grid-cols-2">
-          <GlassCard className="p-6">
-            <h3 className="mb-4 font-semibold text-white">Approval History</h3>
+          <CyberPanel title="Approval History" glow="red">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between rounded-lg bg-white/[0.02] p-3">
                 <span className="text-slate-400">Freeze vendor payments</span>
-                <Badge label="Pending" severity="high" dot />
+                <CyberBadge label="Pending" variant="red" pulse />
               </div>
               <div className="flex justify-between rounded-lg bg-white/[0.02] p-3">
                 <span className="text-slate-400">Notify stakeholders</span>
-                <Badge label="Pending" severity="high" dot />
+                <CyberBadge label="Pending" variant="red" pulse />
               </div>
             </div>
-          </GlassCard>
-          <GlassCard className="p-6">
-            <h3 className="mb-4 font-semibold text-white">Audit Trail</h3>
+          </CyberPanel>
+          <CyberPanel title="Audit Trail" glow="cyan">
             <div className="space-y-1 font-mono text-xs text-slate-500">
               <div>[09:41:15] Audit Agent: 47 evidence items catalogued</div>
               <div>[09:40:00] Executive Strategy: Decision pending</div>
@@ -179,7 +164,7 @@ export function ExecutiveReportView() {
               <div>[09:28:55] Risk Agent: Fraud probability 91%</div>
               <div>[08:42:12] Incident Commander: Room created</div>
             </div>
-          </GlassCard>
+          </CyberPanel>
         </div>
       </div>
     </AppShell>
