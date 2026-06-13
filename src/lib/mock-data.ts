@@ -85,6 +85,9 @@ export const NETWORK_NODES: NetworkNode[] = [
   { id: "api", label: "API Gateway", type: "gateway", position: [-3, -1, 2], threatLevel: 0.4 },
   { id: "finance", label: "Finance Server", type: "server", position: [3, 1.5, 1], threatLevel: 0.8, activeAgent: "Financial Forensics" },
   { id: "identity", label: "Identity Provider", type: "identity", position: [1, 2.5, -2], threatLevel: 0.75, activeAgent: "Identity Investigation" },
+  { id: "firewall", label: "Firewall", type: "server", position: [-4, 0, 0], threatLevel: 0.55, activeAgent: "Security Monitoring" },
+  { id: "siem", label: "SIEM", type: "server", position: [4, -1.5, -1], threatLevel: 0.35 },
+  { id: "email", label: "Email Server", type: "server", position: [-1, 1.5, 2.5], threatLevel: 0.65, activeAgent: "Communication Analysis" },
 ];
 
 export const EVIDENCE_NODES: EvidenceNode[] = [
