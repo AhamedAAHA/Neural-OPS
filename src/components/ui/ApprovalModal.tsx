@@ -28,7 +28,7 @@ export function ApprovalModal({ request, open, onClose, onAction }: ApprovalModa
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="glass-strong neon-border-cyan relative mx-4 w-full max-w-lg rounded-2xl p-6"
+            className="glass-premium hud-panel scanlines neon-border-cyan relative mx-4 w-full max-w-lg rounded-2xl p-6"
           >
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/20">
@@ -40,7 +40,7 @@ export function ApprovalModal({ request, open, onClose, onAction }: ApprovalModa
               </div>
             </div>
 
-            <div className="mb-6 space-y-3 rounded-lg border border-white/10 bg-black/30 p-4 font-mono text-sm">
+            <div className="glass-packet mb-6 space-y-3 rounded-lg p-4 font-mono text-sm">
               <div>
                 <span className="text-slate-500">Action: </span>
                 <span className="text-cyan-300">{request.action}</span>
