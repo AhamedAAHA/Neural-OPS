@@ -40,18 +40,19 @@ export function severityBg(severity: string): string {
 }
 
 export function messageTypeColor(type: string): string {
+  const base = "glass-packet ";
   switch (type) {
     case "EVIDENCE_SUBMISSION":
-      return "border-violet-500/50 bg-violet-500/10";
+      return `${base}border-violet-500/40 shadow-[0_0_12px_rgba(139,92,246,0.08)]`;
     case "APPROVAL_REQUEST":
-      return "border-red-500/50 bg-red-500/10";
+      return `${base}border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.08)]`;
     case "AGENT_RECRUITMENT":
-      return "border-cyan-500/50 bg-cyan-500/10";
+      return `${base}border-cyan-500/40 shadow-[0_0_12px_rgba(34,211,238,0.08)]`;
     case "RISK_UPDATE":
-      return "border-orange-500/50 bg-orange-500/10";
+      return `${base}border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.08)]`;
     case "DECISION":
-      return "border-emerald-500/50 bg-emerald-500/10";
+      return `${base}border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.08)]`;
     default:
-      return "border-cyan-500/30 bg-cyan-500/5";
+      return `${base}border-cyan-500/25`;
   }
 }
