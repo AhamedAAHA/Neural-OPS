@@ -2,68 +2,121 @@
 
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { ArrowRight, Radio, Shield, Users, GitBranch, CheckCircle, FileText, Award } from "lucide-react";
+import { ArrowRight, Radio, Award } from "lucide-react";
 import { NeonButton } from "@/components/ui/NeonButton";
-import { GlassCard } from "@/components/ui/GlassCard";
 import { Scanlines } from "@/components/ui/Scanlines";
-import { CRISIS_TYPES, APP_TAGLINE } from "@/lib/constants";
+import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
+import { APP_TAGLINE, MODEL_PROVIDERS, CRISIS_TYPES } from "@/lib/constants";
+import { useNeuralOpsStore } from "@/store/neural-ops";
 
 const CanvasWrapper = dynamic(() => import("@/components/3d/CanvasWrapper").then((m) => m.CanvasWrapper), { ssr: false });
 const ThreatGlobeScene = dynamic(() => import("@/components/3d/ThreatGlobe").then((m) => m.ThreatGlobeScene), { ssr: false });
 
+const FLOATING_MESSAGES = [
+  { from: "Incident Commander", to: "Digital Forensics", text: "Recruited Digital Forensics Agent" },
+  { from: "Compliance Agent", to: "Legal Agent", text: "Requested Legal review" },
+  { from: "Risk Agent", to: "Executive", text: "Calculated 87/100 severity" },
+];
+
 export function LandingHero() {
+  const { activeAgentCount, incidentCount, threatsBlocked, compliancePct } = useNeuralOpsStore();
+
   return (
-    <section className="relative flex min-h-screen flex-col overflow-hidden">
+    <section className="relative flex h-screen w-full flex-col overflow-hidden bg-neural-bg">
       <Scanlines />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_65%_40%,rgba(34,211,238,0.08),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_50%_at_20%_50%,rgba(139,92,246,0.05),transparent_60%)]" />
 
-      <div className="absolute inset-0 z-0">
-        <CanvasWrapper className="h-full w-full" camera={{ position: [0, 1, 10], fov: 45 }}>
-          <ThreatGlobeScene />
-        </CanvasWrapper>
-        <div className="absolute inset-0 bg-gradient-to-t from-neural-bg via-neural-bg/60 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-neural-bg/80 via-transparent to-neural-bg/80" />
+      <div className="relative z-20 mx-auto grid min-h-0 w-full max-w-[1280px] flex-1 grid-cols-1 items-center gap-8 px-6 py-8 lg:grid-cols-2 lg:gap-x-12 lg:px-10 xl:max-w-[1360px] xl:gap-x-14">
+        {/* Left: hero copy */}
+        <div className="flex w-full items-center lg:justify-end lg:pr-2 xl:pr-4">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, ease: "easeOut" }}
+            className="w-full max-w-xl text-left"
+          >
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/[0.06] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-400">
+              <Radio className="h-3 w-3 animate-pulse" />
+              Band Multi-Agent · Track 3 · Regulated Ops
+            </div>
+
+            <h1 className="font-display text-gradient-cyber mb-4 text-3xl font-bold leading-[1.12] tracking-wide md:text-4xl xl:text-[2.75rem]">
+              Autonomous Enterprise Crisis Investigation Network
+            </h1>
+
+            <p className="mb-7 max-w-md font-mono text-sm leading-relaxed text-slate-400">{APP_TAGLINE}</p>
+
+            <div className="mb-7 flex flex-wrap gap-2">
+              {MODEL_PROVIDERS.map((p) => (
+                <CyberBadge key={p.name} label={p.name} variant={p.color as "cyan" | "violet" | "emerald" | "amber"} pulse={p.status === "online"} />
+              ))}
+            </div>
+
+            <div className="mb-8 flex h-8 max-w-xs items-end gap-0.5">
+              {Array.from({ length: 24 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  animate={{ height: [4, 8 + Math.sin(i) * 12, 4] }}
+                  transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.05 }}
+                  className="w-1 rounded-full bg-cyan-500/40"
+                />
+              ))}
+              <span className="ml-2 font-mono text-[9px] uppercase tracking-wider text-slate-600">Speechmatics</span>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <NeonButton href="/command-center" size="lg" className="font-mono uppercase tracking-wider">
+                &gt; Launch Command Center
+              </NeonButton>
+              <NeonButton href="/investigation" variant="secondary" size="lg" className="font-mono uppercase tracking-wider">
+                Start Investigation <ArrowRight className="h-4 w-4" />
+              </NeonButton>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Right: 3D globe */}
+        <div className="relative min-h-[44vh] w-full lg:min-h-0 lg:h-full lg:pl-2 xl:pl-4">
+          <CanvasWrapper
+            transparent
+            className="absolute inset-0 h-full w-full"
+            camera={{ position: [0, 2, 11], fov: 42 }}
+          >
+            <ThreatGlobeScene />
+          </CanvasWrapper>
+
+          <div className="pointer-events-none absolute inset-0 z-10 hidden md:block">
+            {FLOATING_MESSAGES.map((msg, i) => (
+              <motion.div
+                key={msg.text}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 + i * 0.45 }}
+                className="glass-packet absolute rounded-lg px-3 py-2 font-mono text-[10px]"
+                style={{ top: `${16 + i * 24}%`, right: `${8 + (i % 2) * 6}%` }}
+              >
+                <span className="text-cyan-400">{msg.from}</span>
+                <span className="text-slate-600"> → </span>
+                <span className="text-violet-400">{msg.to}</span>
+                <div className="mt-1 text-slate-400">{msg.text}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="relative z-20 flex flex-1 flex-col items-center justify-center px-6 pt-20 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="max-w-4xl"
-        >
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1.5 text-xs text-cyan-400">
-            <Radio className="h-3 w-3 animate-pulse" />
-            Band Multi-Agent Command Network · Track 3
-          </div>
-
-          <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight text-white md:text-6xl neon-text-cyan">
-            Autonomous Enterprise Crisis Investigation Network
-          </h1>
-
-          <p className="mx-auto mb-8 max-w-2xl text-lg text-slate-400">{APP_TAGLINE}</p>
-
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <NeonButton href="/command-center" size="lg">
-              Launch Command Center <ArrowRight className="h-4 w-4" />
-            </NeonButton>
-            <NeonButton href="/investigation" variant="secondary" size="lg">
-              Start Investigation
-            </NeonButton>
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="relative z-20 border-t border-white/5 bg-neural-bg/80 backdrop-blur-sm">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 p-6 md:grid-cols-4">
+      <div className="relative z-20 border-t border-cyan-500/10 bg-neural-bg/80 backdrop-blur-md">
+        <div className="mx-auto grid max-w-5xl grid-cols-4 gap-2 p-3">
           {[
-            { label: "Active Agents", value: "12" },
-            { label: "Incidents Today", value: "3" },
-            { label: "Threats Contained", value: "847" },
-            { label: "Compliance Score", value: "94%" },
+            { label: "Active Agents", value: String(activeAgentCount) },
+            { label: "Incidents", value: String(incidentCount) },
+            { label: "Threats Blocked", value: String(threatsBlocked) },
+            { label: "Compliance", value: `${compliancePct}%` },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
-              <div className="text-2xl font-bold text-cyan-400">{stat.value}</div>
-              <div className="text-xs text-slate-500">{stat.label}</div>
+              <div className="font-display text-xl font-bold text-cyan-300">{stat.value}</div>
+              <div className="font-mono text-[10px] font-medium uppercase tracking-wider text-slate-500">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -74,161 +127,28 @@ export function LandingHero() {
 
 export function LandingSections() {
   return (
-    <div className="relative z-10 bg-neural-bg">
-      {/* Crisis Types */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <SectionHeader icon={Shield} title="Supported Crisis Types" subtitle="Enterprise-grade response for every threat category" />
-        <div className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+    <div className="relative z-10 bg-neural-bg pb-16">
+      <section className="mx-auto max-w-5xl px-4 py-16">
+        <h2 className="font-display mb-2 text-center text-xl font-bold text-white">Supported Crisis Types</h2>
+        <div className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-5">
           {CRISIS_TYPES.map((type, i) => (
-            <motion.div
-              key={type}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <GlassCard hover className="p-4 text-center">
-                <div className="text-sm font-medium text-slate-300">{type}</div>
-              </GlassCard>
+            <motion.div key={type} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.03 }}>
+              <CyberPanel compact className="text-center">
+                <span className="font-mono text-[10px] text-slate-400">{type}</span>
+              </CyberPanel>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Multi-agent Architecture */}
-      <section className="border-y border-white/5 bg-neural-panel/30 py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <SectionHeader icon={Users} title="Multi-Agent Architecture" subtitle="Five tiers of specialized autonomous agents" />
-          <div className="mt-10 grid gap-4 md:grid-cols-5">
-            {[
-              { tier: "Detection", color: "cyan", count: 3 },
-              { tier: "Investigation", color: "violet", count: 6 },
-              { tier: "Intelligence", color: "emerald", count: 4 },
-              { tier: "Governance", color: "red", count: 3 },
-              { tier: "Response", color: "violet", count: 4 },
-            ].map((t) => (
-              <GlassCard key={t.tier} glow={t.color as "cyan" | "violet" | "red" | "emerald"} className="p-5 text-center">
-                <div className="mb-2 text-3xl font-bold text-white">{t.count}</div>
-                <div className="text-sm font-medium text-slate-300">{t.tier}</div>
-                <div className="mt-1 text-xs text-slate-500">Agents</div>
-              </GlassCard>
-            ))}
-          </div>
+      <section className="border-y border-cyan-500/10 bg-neural-panel/30 py-16">
+        <div className="mx-auto max-w-3xl px-4 text-center">
+          <Award className="mx-auto mb-3 h-10 w-10 text-violet-400" />
+          <h2 className="font-display text-xl font-bold text-white">Track 3: Regulated & High-Stakes Workflows</h2>
+          <p className="mt-2 font-mono text-sm text-slate-500">Enterprise security where human oversight and audit trails are mandatory.</p>
+          <NeonButton href="/command-center" size="lg" className="mt-6 font-mono">Enter Command Center</NeonButton>
         </div>
       </section>
-
-      {/* Band Workflow */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <SectionHeader icon={GitBranch} title="Band Collaboration Workflow" subtitle="Agents communicate, recruit, and coordinate autonomously" />
-        <div className="mt-10 space-y-3">
-          {[
-            "Incident Commander creates investigation room",
-            "Specialist agents recruited via Band",
-            "Evidence shared through structured messages",
-            "Compliance and legal agents review findings",
-            "Risk simulation compares response options",
-            "Human approval for critical actions",
-            "Executive report generated with full audit trail",
-          ].map((step, i) => (
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="flex items-center gap-4"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cyan-500/30 bg-cyan-500/10 text-xs font-bold text-cyan-400">
-                {i + 1}
-              </div>
-              <GlassCard className="flex-1 px-4 py-3">
-                <span className="text-sm text-slate-300">{step}</span>
-              </GlassCard>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* Investigation Lifecycle */}
-      <section className="border-y border-white/5 bg-neural-panel/30 py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <SectionHeader icon={CheckCircle} title="Security Investigation Lifecycle" subtitle="End-to-end incident management" />
-          <div className="mt-10 flex flex-wrap justify-center gap-2">
-            {["Detect", "Investigate", "Correlate", "Simulate", "Govern", "Approve", "Respond", "Audit"].map((phase, i) => (
-              <div key={phase} className="flex items-center gap-2">
-                <span className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">{phase}</span>
-                {i < 7 && <ArrowRight className="h-4 w-4 text-cyan-500/50" />}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Human Approval */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <SectionHeader icon={Shield} title="Human Approval Layer" subtitle="Critical decisions require executive authorization" />
-        <GlassCard glow="red" className="mx-auto max-w-2xl p-6">
-          <div className="mb-4 font-mono text-xs text-red-400">CRITICAL ACTION REQUIRES APPROVAL</div>
-          <div className="space-y-2 text-sm">
-            <div><span className="text-slate-500">Action:</span> <span className="text-white">Freeze vendor payments and notify stakeholders</span></div>
-            <div><span className="text-slate-500">Risk:</span> <span className="text-red-400">HIGH</span></div>
-            <div><span className="text-slate-500">Agent Recommendation:</span> <span className="text-emerald-400">Approve</span></div>
-          </div>
-          <div className="mt-4 flex gap-3">
-            <NeonButton size="sm">Approve</NeonButton>
-            <NeonButton variant="danger" size="sm">Reject</NeonButton>
-            <NeonButton variant="secondary" size="sm">Escalate</NeonButton>
-          </div>
-        </GlassCard>
-      </section>
-
-      {/* Executive Report Preview */}
-      <section className="border-y border-white/5 bg-neural-panel/30 py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <SectionHeader icon={FileText} title="Executive Report Preview" subtitle="Polished decision-ready intelligence" />
-          <GlassCard className="mt-10 p-6">
-            <div className="grid gap-6 md:grid-cols-3">
-              <div>
-                <div className="mb-2 text-xs text-slate-500">Incident</div>
-                <div className="font-semibold text-white">Vendor ABC Suspected Fraud</div>
-                <div className="mt-1 text-sm text-red-400">Risk Score: 87/100</div>
-              </div>
-              <div>
-                <div className="mb-2 text-xs text-slate-500">Financial Impact</div>
-                <div className="font-semibold text-white">$2.4M exposure</div>
-                <div className="mt-1 text-sm text-slate-400">Fraud probability: 91%</div>
-              </div>
-              <div>
-                <div className="mb-2 text-xs text-slate-500">Recommendation</div>
-                <div className="font-semibold text-emerald-400">Freeze payments + forensic audit</div>
-                <NeonButton href="/executive-report" size="sm" className="mt-2">View Full Report</NeonButton>
-              </div>
-            </div>
-          </GlassCard>
-        </div>
-      </section>
-
-      {/* Track 3 */}
-      <section className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <Award className="mx-auto mb-4 h-12 w-12 text-violet-400" />
-        <h2 className="mb-2 text-2xl font-bold text-white">Track 3: Regulated & High-Stakes Workflows</h2>
-        <p className="mx-auto mb-8 max-w-xl text-slate-400">
-          Built for enterprise security, compliance, and crisis management where human oversight and audit trails are mandatory.
-        </p>
-        <NeonButton href="/command-center" size="lg">
-          Enter Command Center <ArrowRight className="h-4 w-4" />
-        </NeonButton>
-      </section>
-    </div>
-  );
-}
-
-function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ComponentType<{ className?: string }>; title: string; subtitle: string }) {
-  return (
-    <div className="text-center">
-      <Icon className="mx-auto mb-3 h-8 w-8 text-cyan-400" />
-      <h2 className="text-2xl font-bold text-white md:text-3xl">{title}</h2>
-      <p className="mt-2 text-slate-400">{subtitle}</p>
     </div>
   );
 }
