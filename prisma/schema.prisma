@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  admin
+  analyst
+  executive
+  auditor
+}
+
+enum IncidentStatus {
+  open
+  investigating
+  pending_approval
+  contained
+  escalated
+  resolved
+  closed
+}
+
+enum Severity {
+  critical
+  high
+  medium
+  low
+}
+
+enum RoomStatus {
+  active
+  paused
+  closed
+}
+
+enum AgentStatus {
+  idle
+  active
+  recruiting
+  waiting
+  completed
+  offline
+}
+
+enum AgentTier {
+  Detection
+  Investigation
+  Intelligence
+  Governance
+  Response
+}
+
+enum MessageType {
+  CONTEXT_SHARE
+  TASK_HANDOFF
+  EVIDENCE_SUBMISSION
+  REVIEW_REQUEST
+  APPROVAL_REQUEST
+  DECISION
+  AGENT_RECRUITMENT
+  RISK_UPDATE
+  VOICE_COMMAND
+}
+
+enum HandoffStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
+  escalated
+}
+
+enum ModelProvider {
+  AIML_API
+  FEATHERLESS
+  OPENAI
+  LOCAL
+}
+
+enum ActorType {
+  user
+  agent
+  system
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      UserRole @default(analyst)
+  authId    String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incidentsCreated Incident[]       @relation("IncidentCreator")
+  approvalsGiven   HumanApproval[]  @relation("ApprovalDecider")
+  voiceCommands    VoiceCommand[]
+}
+
+model Incident {
+  id          String         @id @default(cuid())
+  title       String
+  description String         @db.Text
+  type        String
+  severity    Severity
+  status      IncidentStatus @default(open)
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  creator            User                @relation("IncidentCreator", fields: [createdBy], references: [id])
+  rooms              InvestigationRoom[]
+  evidence           Evidence[]
+  riskAssessments    RiskAssessment[]
+  complianceFindings ComplianceFinding[]
+  legalFindings      LegalFinding[]
+  approvals          HumanApproval[]
+  reports            ExecutiveReport[]
+  auditLogs          AuditLog[]
+  voiceCommands      VoiceCommand[]
+  modelInvocations   ModelInvocation[]
+}
+
+model InvestigationRoom {
+  id         String     @id @default(cuid())
+  incidentId String
+  bandRoomId String     @unique
+  name       String
+  status     RoomStatus @default(active)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  incident     Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  agents       Agent[]
+  messages     AgentMessage[]
+  handoffs     TaskHandoff[]
+}
+
+model Agent {
+  id         String      @id @default(cuid())
+  name       String
+  role       String
+  tier       AgentTier
+  framework  String      @default("band")
+  provider   ModelProvider @default(AIML_API)
+  status     AgentStatus @default(idle)
+  capabilities Json      @default("[]")
+  roomId     String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  room                  InvestigationRoom? @relation(fields: [roomId], references: [id])
+  messagesSent          AgentMessage[]     @relation("MessageSender")
+  messagesReceived      AgentMessage[]     @relation("MessageRecipient")
+  evidenceProduced      Evidence[]
+  handoffsFrom          TaskHandoff[]      @relation("HandoffFrom")
+  handoffsTo            TaskHandoff[]      @relation("HandoffTo")
+  riskAssessments       RiskAssessment[]
+  complianceFindings    ComplianceFinding[]
+  legalFindings         LegalFinding[]
+  approvalsRequested    HumanApproval[]
+  voiceCommandsRouted   VoiceCommand[]
+  modelInvocations      ModelInvocation[]
+}
+
+model AgentMessage {
+  id               String      @id @default(cuid())
+  roomId           String
+  agentId          String
+  recipientAgentId String?
+  messageType      MessageType
+  contentJson      Json
+  bandMessageId    String?     @unique
+  modelProvider    ModelProvider?
+  confidence       Float?
+  createdAt        DateTime    @default(now())
+
+  room      InvestigationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  agent     Agent             @relation("MessageSender", fields: [agentId], references: [id])
+  recipient Agent?            @relation("MessageRecipient", fields: [recipientAgentId], references: [id])
+}
+
+model Evidence {
+  id              String   @id @default(cuid())
+  incidentId      String
+  sourceAgentId   String
+  evidenceType    String
+  title           String
+  description     String   @db.Text
+  confidence      Float
+  metadataJson    Json     @default("{}")
+  sourceReference String?
+  bandMessageId   String?
+  createdAt       DateTime @default(now())
+
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  sourceAgent Agent    @relation(fields: [sourceAgentId], references: [id])
+}
+
+model TaskHandoff {
+  id              String        @id @default(cuid())
+  roomId          String
+  fromAgentId     String
+  toAgentId       String
+  taskTitle       String
+  taskPayloadJson Json          @default("{}")
+  status          HandoffStatus @default(pending)
+  bandMessageId   String?
+  createdAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  room      InvestigationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  fromAgent Agent             @relation("HandoffFrom", fields: [fromAgentId], references: [id])
+  toAgent   Agent             @relation("HandoffTo", fields: [toAgentId], references: [id])
+}
+
+model RiskAssessment {
+  id                  String   @id @default(cuid())
+  incidentId          String
+  riskScore           Float
+  financialImpact     Float
+  legalImpact         Float
+  reputationImpact    Float
+  operationalImpact   Float
+  customerImpact      Float
+  recommendation      String   @db.Text
+  generatedByAgentId  String
+  createdAt           DateTime @default(now())
+
+  incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  generatedByAgent Agent    @relation(fields: [generatedByAgentId], references: [id])
+}
+
+model ComplianceFinding {
+  id                 String   @id @default(cuid())
+  incidentId         String
+  regulation         String
+  finding            String   @db.Text
+  severity           Severity
+  requiredAction     String   @db.Text
+  generatedByAgentId String
+  createdAt          DateTime @default(now())
+
+  incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  generatedByAgent Agent    @relation(fields: [generatedByAgentId], references: [id])
+}
+
+model LegalFinding {
+  id                    String   @id @default(cuid())
+  incidentId            String
+  liability             String   @db.Text
+  disclosureRequirement String   @db.Text
+  legalExposure         Float
+  recommendedAction     String   @db.Text
+  generatedByAgentId    String
+  createdAt             DateTime @default(now())
+
+  incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  generatedByAgent Agent    @relation(fields: [generatedByAgentId], references: [id])
+}
+
+model HumanApproval {
+  id                  String         @id @default(cuid())
+  incidentId          String
+  requestedByAgentId  String
+  actionTitle         String
+  actionDescription   String         @db.Text
+  riskLevel           Severity
+  status              ApprovalStatus @default(pending)
+  approvedBy          String?
+  decisionNote        String?        @db.Text
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  requestedByAgent Agent    @relation(fields: [requestedByAgentId], references: [id])
+  approver         User?    @relation("ApprovalDecider", fields: [approvedBy], references: [id])
+}
+
+model ExecutiveReport {
+  id                    String   @id @default(cuid())
+  incidentId            String
+  summary               String   @db.Text
+  timelineJson          Json     @default("[]")
+  evidenceJson          Json     @default("[]")
+  riskJson              Json     @default("{}")
+  complianceJson        Json     @default("[]")
+  legalJson             Json     @default("[]")
+  recommendationsJson   Json     @default("[]")
+  agentContributionJson Json     @default("[]")
+  approvalHistoryJson   Json     @default("[]")
+  createdAt             DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  incidentId  String?
+  actorType   ActorType
+  actorId     String
+  action      String
+  detailsJson Json      @default("{}")
+  createdAt   DateTime  @default(now())
+
+  incident Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+}
+
+model VoiceCommand {
+  id            String   @id @default(cuid())
+  userId        String
+  incidentId    String?
+  audioUrl      String?
+  transcript    String   @db.Text
+  intent        String
+  confidence    Float
+  routedAgentId String?
+  createdAt     DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+  incident    Incident? @relation(fields: [incidentId], references: [id])
+  routedAgent Agent?    @relation(fields: [routedAgentId], references: [id])
+}
+
+model ModelInvocation {
+  id               String        @id @default(cuid())
+  provider         ModelProvider
+  model            String
+  agentId          String?
+  incidentId       String?
+  promptTokens     Int           @default(0)
+  completionTokens Int           @default(0)
+  latencyMs        Int           @default(0)
+  status           String        @default("success")
+  createdAt        DateTime      @default(now())
+
+  agent    Agent?    @relation(fields: [agentId], references: [id])
+  incident Incident? @relation(fields: [incidentId], references: [id])
+}
