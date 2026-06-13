@@ -2,169 +2,132 @@
 
 import { useRef, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Line, Text, Html, OrbitControls } from "@react-three/drei";
+import { Line, Text, Html, Grid, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { NETWORK_NODES } from "@/lib/mock-data";
 
-const TYPE_COLORS: Record<string, string> = {
-  database: "#a78bfa",
-  cloud: "#38bdf8",
-  device: "#fbbf24",
-  vendor: "#f87171",
-  gateway: "#fb923c",
-  portal: "#34d399",
-  server: "#818cf8",
-  identity: "#22d3ee",
+type NodeStatus = "safe" | "compromised" | "suspicious" | "agent";
+
+interface TwinNode {
+  id: string;
+  label: string;
+  status: NodeStatus;
+  position: [number, number, number];
+}
+
+const TWIN_NODES: TwinNode[] = [
+  { id: "core", label: "Neural OPS Core", status: "agent", position: [0, 0, 0] },
+  { id: "vendor", label: "Vendor System", status: "compromised", position: [-3.2, 0, -1.2] },
+  { id: "payment", label: "Payment Gateway", status: "compromised", position: [-1.4, 0, 2.8] },
+  { id: "db", label: "Cloud Database", status: "suspicious", position: [2.6, 0, 2.2] },
+  { id: "finance", label: "Finance Server", status: "suspicious", position: [3.4, 0, -0.8] },
+  { id: "device", label: "Employee Device", status: "suspicious", position: [1.2, 0, -3.2] },
+  { id: "firewall", label: "Firewall", status: "safe", position: [-2.4, 0, 2.4] },
+  { id: "siem", label: "SIEM", status: "safe", position: [0.2, 0, -3.6] },
+];
+
+const STATUS_COLOR: Record<NodeStatus, string> = {
+  safe: "#22d3ee",
+  compromised: "#ef4444",
+  suspicious: "#f59e0b",
+  agent: "#a78bfa",
 };
 
-function ThreatPulseLine({ from, to, active }: { from: THREE.Vector3; to: THREE.Vector3; active: boolean }) {
+const STATIC_LINKS: [string, string][] = [
+  ["core", "firewall"],
+  ["core", "siem"],
+  ["firewall", "vendor"],
+  ["firewall", "payment"],
+  ["payment", "db"],
+  ["vendor", "payment"],
+  ["db", "finance"],
+  ["finance", "device"],
+  ["siem", "device"],
+];
+
+function pos(id: string) {
+  return new THREE.Vector3(...TWIN_NODES.find((n) => n.id === id)!.position);
+}
+
+function TravelingPulse({ from, to, color, speed = 0.22, offset = 0 }: { from: THREE.Vector3; to: THREE.Vector3; color: string; speed?: number; offset?: number }) {
   const ref = useRef<THREE.Mesh>(null);
-
   useFrame(({ clock }) => {
-    if (!ref.current || !active) return;
-    const t = (clock.elapsedTime * 0.5) % 1;
-    ref.current.position.lerpVectors(from, to, t);
+    if (!ref.current) return;
+    ref.current.position.lerpVectors(from, to, ((clock.elapsedTime * speed + offset) % 1));
   });
-
-  if (!active) return null;
-
   return (
     <mesh ref={ref} position={from.toArray()}>
-      <sphereGeometry args={[0.08, 8, 8]} />
-      <meshBasicMaterial color="#f87171" />
+      <sphereGeometry args={[0.05, 8, 8]} />
+      <meshBasicMaterial color={color} transparent opacity={0.85} />
     </mesh>
   );
 }
 
-function NetworkNodeMesh({
-  node,
-  onHover,
-}: {
-  node: (typeof NETWORK_NODES)[0];
-  onHover: (id: string | null) => void;
-}) {
-  const ref = useRef<THREE.Mesh>(null);
-  const color = TYPE_COLORS[node.type] ?? "#94a3b8";
-  const isThreat = node.threatLevel > 0.6;
-
-  useFrame(({ clock }) => {
-    if (!ref.current) return;
-    ref.current.position.y = node.position[1] + Math.sin(clock.elapsedTime + node.position[0]) * 0.08;
-    if (isThreat) {
-      const pulse = 1 + Math.sin(clock.elapsedTime * 3) * 0.15 * node.threatLevel;
-      ref.current.scale.setScalar(pulse);
-    }
-  });
-
+function TwinNodeMesh({ node, hovered, onHover, onSelect }: { node: TwinNode; hovered: boolean; onHover: (id: string | null) => void; onSelect?: (id: string) => void }) {
+  if (node.id === "core") return null;
+  const color = STATUS_COLOR[node.status];
   return (
     <group position={node.position}>
-      <mesh
-        ref={ref}
-        onPointerOver={() => onHover(node.id)}
-        onPointerOut={() => onHover(null)}
-      >
-        <octahedronGeometry args={[0.35, 0]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={isThreat ? "#f87171" : color}
-          emissiveIntensity={isThreat ? node.threatLevel * 0.8 : 0.4}
-        />
+      <mesh onPointerOver={() => onHover(node.id)} onPointerOut={() => onHover(null)} onClick={() => onSelect?.(node.id)}>
+        <sphereGeometry args={[0.14, 16, 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={hovered ? 0.55 : 0.3} />
       </mesh>
-
-      {node.activeAgent && (
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.55, 0.015, 8, 24]} />
-          <meshBasicMaterial color="#22d3ee" transparent opacity={0.6} />
-        </mesh>
-      )}
-
-      {isThreat && (
-        <mesh>
-          <sphereGeometry args={[0.5, 16, 16]} />
-          <meshBasicMaterial color="#f87171" transparent opacity={0.08 + Math.sin(Date.now() * 0.003) * 0.04} />
-        </mesh>
-      )}
-
-      <Text position={[0, -0.55, 0]} fontSize={0.1} color="#94a3b8" anchorX="center">
+      <Text position={[0, -0.32, 0]} fontSize={0.08} color="#cbd5e1" anchorX="center" outlineWidth={0.01} outlineColor="#020617">
         {node.label}
       </Text>
     </group>
   );
 }
 
-function ConnectionLines() {
-  const connections = useMemo(() => {
-    const pairs: [number, number][] = [
-      [0, 4], [4, 3], [3, 7], [7, 2], [2, 8], [8, 0], [1, 6], [6, 5],
-    ];
-    return pairs.map(([a, b]) => ({
-      from: new THREE.Vector3(...NETWORK_NODES[a].position),
-      to: new THREE.Vector3(...NETWORK_NODES[b].position),
-      threat: NETWORK_NODES[a].threatLevel > 0.6 || NETWORK_NODES[b].threatLevel > 0.6,
-    }));
-  }, []);
-
-  return (
-    <>
-      {connections.map((c, i) => {
-        const points = [c.from, c.to];
-        return (
-          <Line
-            key={i}
-            points={points}
-            color={c.threat ? "#f87171" : "#22d3ee"}
-            lineWidth={0.5}
-            transparent
-            opacity={c.threat ? 0.5 : 0.2}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-export function EnterpriseNetworkTwinScene() {
-  const groupRef = useRef<THREE.Group>(null);
+export function EnterpriseNetworkTwinScene({ onNodeSelect }: { onNodeSelect?: (id: string) => void }) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const hoveredNode = NETWORK_NODES.find((n) => n.id === hovered);
-
-  useFrame((_, delta) => {
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.08;
-  });
-
-  const threatPairs = useMemo(
-    () => [
-      { from: new THREE.Vector3(...NETWORK_NODES[3].position), to: new THREE.Vector3(...NETWORK_NODES[4].position) },
-      { from: new THREE.Vector3(...NETWORK_NODES[7].position), to: new THREE.Vector3(...NETWORK_NODES[2].position) },
-    ],
-    []
-  );
+  const hoveredNode = TWIN_NODES.find((n) => n.id === hovered);
+  const threatChain = useMemo(() => [pos("vendor"), pos("payment"), pos("db")], []);
+  const defenseChain = useMemo(() => [pos("core"), pos("firewall"), pos("siem")], []);
 
   return (
     <>
-      <ambientLight intensity={0.25} />
-      <pointLight position={[5, 5, 5]} intensity={0.6} color="#22d3ee" />
-      <pointLight position={[-5, 3, -5]} intensity={0.3} color="#a78bfa" />
-      <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.3} maxPolarAngle={Math.PI / 1.8} minPolarAngle={Math.PI / 4} />
+      <ambientLight intensity={0.28} />
+      <pointLight position={[4, 6, 4]} intensity={0.45} color="#22d3ee" />
+      <directionalLight position={[2, 8, 2]} intensity={0.25} color="#64748b" />
 
-      <group ref={groupRef}>
-        <ConnectionLines />
-        {NETWORK_NODES.map((node) => (
-          <NetworkNodeMesh key={node.id} node={node} onHover={setHovered} />
-        ))}
-        {threatPairs.map((pair, i) => (
-          <ThreatPulseLine key={i} from={pair.from} to={pair.to} active />
-        ))}
-      </group>
+      <OrbitControls
+        enableZoom
+        enablePan={false}
+        enableRotate
+        minDistance={4}
+        maxDistance={14}
+        autoRotate
+        autoRotateSpeed={0.35}
+      />
 
-      {hoveredNode && (
-        <Html position={hoveredNode.position} center distanceFactor={8}>
-          <div className="glass rounded-lg border border-cyan-500/30 p-3 text-xs whitespace-nowrap pointer-events-none">
-            <div className="font-semibold text-white">{hoveredNode.label}</div>
-            <div className="text-slate-400">Threat: {(hoveredNode.threatLevel * 100).toFixed(0)}%</div>
-            {hoveredNode.activeAgent && (
-              <div className="text-cyan-400">Agent: {hoveredNode.activeAgent}</div>
-            )}
+      <Grid position={[0, -1.8, 0]} args={[18, 18]} cellSize={0.8} cellThickness={0.4} cellColor="#0e7490" sectionSize={3.2} sectionThickness={0.6} sectionColor="#22d3ee" fadeDistance={20} infiniteGrid />
+
+      <mesh>
+        <sphereGeometry args={[0.22, 20, 20]} />
+        <meshStandardMaterial color="#0e7490" emissive="#22d3ee" emissiveIntensity={0.45} />
+      </mesh>
+      <Text position={[0, -0.45, 0]} fontSize={0.08} color="#22d3ee" anchorX="center" outlineWidth={0.01} outlineColor="#020617">
+        Neural OPS Core
+      </Text>
+
+      {STATIC_LINKS.map(([a, b]) => (
+        <Line key={`${a}-${b}`} points={[pos(a), pos(b)]} color="#22d3ee" lineWidth={0.5} transparent opacity={0.15} />
+      ))}
+
+      {TWIN_NODES.map((node) => (
+        <TwinNodeMesh key={node.id} node={node} hovered={hovered === node.id} onHover={setHovered} onSelect={onNodeSelect} />
+      ))}
+
+      <TravelingPulse from={threatChain[0]} to={threatChain[1]} color="#ef4444" />
+      <TravelingPulse from={threatChain[1]} to={threatChain[2]} color="#ef4444" offset={0.5} />
+      <TravelingPulse from={defenseChain[0]} to={defenseChain[1]} color="#22d3ee" speed={0.18} />
+      <TravelingPulse from={defenseChain[1]} to={defenseChain[2]} color="#22d3ee" speed={0.18} offset={0.5} />
+
+      {hoveredNode && hoveredNode.id !== "core" && (
+        <Html position={hoveredNode.position} center distanceFactor={10}>
+          <div className="pointer-events-none rounded border border-cyan-500/30 bg-[#020617]/95 px-2.5 py-1.5 font-mono text-[10px] whitespace-nowrap">
+            <div className="font-medium text-slate-200">{hoveredNode.label}</div>
+            <div className="uppercase text-slate-500">{hoveredNode.status}</div>
           </div>
         </Html>
       )}
