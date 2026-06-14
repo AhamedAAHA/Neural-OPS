@@ -33,12 +33,37 @@ const ROLE_PERMISSIONS: Record<UserRole, PermissionCheck[]> = {
     "approvals:request", "reports:read",
     "voice:use", "ai:use", "risk:analyze",
   ],
+  compliance_manager: [
+    "incidents:read",
+    "evidence:read",
+    "approvals:request",
+    "approvals:respond",
+    "reports:read",
+    "audit:read",
+    "risk:analyze",
+  ],
+  legal_counsel: [
+    "incidents:read",
+    "evidence:read",
+    "approvals:request",
+    "approvals:respond",
+    "reports:read",
+    "audit:read",
+  ],
+  risk_officer: [
+    "incidents:read",
+    "evidence:read",
+    "approvals:request",
+    "approvals:respond",
+    "reports:read",
+    "audit:read",
+    "risk:analyze",
+  ],
   executive: [
     "incidents:read", "evidence:read",
     "approvals:respond", "reports:generate", "reports:read",
     "voice:use", "ai:use", "risk:analyze",
   ],
-  auditor: ["incidents:read", "evidence:read", "reports:read", "audit:read"],
 };
 
 export function hasPermission(user: AuthUser, permission: PermissionCheck): boolean {

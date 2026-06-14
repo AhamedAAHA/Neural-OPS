@@ -15,7 +15,12 @@ import {
   Mic,
   Cpu,
   ScrollText,
-  CheckCircle2,
+  Swords,
+  Globe,
+  BookOpen,
+  Info,
+  Activity,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME, NAV_ITEMS } from "@/lib/constants";
@@ -33,6 +38,12 @@ const iconMap = {
   Mic,
   Cpu,
   ScrollText,
+  Swords,
+  Globe,
+  BookOpen,
+  Info,
+  Activity,
+  TrendingUp,
 };
 
 const sections = [
@@ -44,11 +55,10 @@ const sections = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { bandConnected, activeAgentCount, riskScore, demoFeatures } = useNeuralOpsStore();
-  const doneCount = demoFeatures.filter((f) => f.done).length;
+  const { bandConnected, activeAgentCount, riskScore, activeTenantName } = useNeuralOpsStore();
 
   return (
-    <aside className="glass-premium flex h-full w-[220px] shrink-0 flex-col border-r border-cyan-500/15">
+    <aside className="glass-premium relative z-30 flex h-full w-[220px] shrink-0 flex-col border-r border-cyan-500/15">
       <div className="border-b border-cyan-500/10 px-4 py-3">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="relative flex h-8 w-8 items-center justify-center rounded border border-cyan-500/30 bg-cyan-500/10">
@@ -57,7 +67,7 @@ export function Sidebar() {
           </div>
           <div className="min-w-0">
             <div className="font-display truncate text-xs font-bold tracking-wider text-white">{APP_NAME}</div>
-            <div className="font-mono text-[10px] uppercase tracking-widest text-cyan-400/80">SOC · Track 3</div>
+            <div className="truncate font-mono text-[9px] uppercase tracking-widest text-cyan-400/80">{activeTenantName || "Enterprise OS"}</div>
           </div>
         </Link>
       </div>
@@ -98,26 +108,7 @@ export function Sidebar() {
           );
         })}
 
-        <div className="mt-2 flex min-h-0 flex-1 flex-col border-t border-cyan-500/10 pt-2">
-          <div className="mb-1.5 flex items-center justify-between px-2">
-            <span className="font-mono text-[10px] font-medium uppercase tracking-wider text-slate-500">Demo Features</span>
-            <span className="font-mono text-[10px] text-cyan-400">{doneCount}/{demoFeatures.length}</span>
-          </div>
-          <div className="flex-1 space-y-1 overflow-y-auto px-1">
-            {demoFeatures.map((f) => (
-              <div
-                key={f.id}
-                className={cn(
-                  "flex items-center gap-1.5 rounded px-1.5 py-1 font-mono text-[10px]",
-                  f.done ? "text-emerald-400" : "text-slate-500"
-                )}
-              >
-                <CheckCircle2 className={cn("h-2.5 w-2.5 shrink-0", f.done ? "text-emerald-400" : "text-slate-600")} />
-                <span className="truncate">{f.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <div className="mt-2 border-t border-cyan-500/10 pt-2" />
       </nav>
 
       <div className="space-y-2 border-t border-cyan-500/10 p-3">

@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/db";
 import { broadcastEvent } from "@/lib/realtime/broadcaster";
 import { createDbAgent, wrapAgent } from "@/lib/agents/registry";
-import { getBandAdapter } from "@/lib/band";
+import { BandService } from "@/lib/band";
 
-const VENDOR_ABC_RECRUITMENTS = [
+const DEFAULT_INVESTIGATION_RECRUITMENTS = [
   "DigitalForensicsAgent",
   "FinancialForensicsAgent",
   "IdentityInvestigationAgent",
@@ -16,6 +16,7 @@ const VENDOR_ABC_RECRUITMENTS = [
 ];
 
 export async function startInvestigationWorkflow(incidentId: string) {
+  const bandService = new BandService();
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
     include: { rooms: { include: { agents: true } } },
@@ -40,28 +41,36 @@ export async function startInvestigationWorkflow(incidentId: string) {
   });
 
   const recruited: string[] = [];
-  for (const role of VENDOR_ABC_RECRUITMENTS) {
+  for (const role of DEFAULT_INVESTIGATION_RECRUITMENTS) {
     const agent = await createDbAgent(role, room.id);
-    const band = getBandAdapter();
     const def = (await import("@/lib/agents/registry")).AGENT_DEFINITIONS.find((d) => d.role === role)!;
-    await band.recruitAgent(room.bandRoomId, {
-      id: agent.id, name: def.name, role: def.role, tier: def.tier, capabilities: def.capabilities,
-    });
+    await bandService.recruitAgent(
+      room.bandRoomId,
+      {
+        id: agent.id,
+        name: def.name,
+        role: def.role,
+        tier: def.tier,
+        capabilities: def.capabilities,
+      },
+      { incidentId, roomId: room.id, organizationId: incident.organizationId ?? undefined }
+    );
     await commanderAgent.sendMessageToBand(agent.id, "AGENT_RECRUITMENT", `Recruited ${def.name}`, { agentId: agent.id });
     recruited.push(agent.id);
   }
 
-  await runVendorAbcDemoFlow(incidentId, room.id, room.bandRoomId, commander.id, recruited);
+  await runAutomatedInvestigationFlow(incidentId, room.id, room.bandRoomId, commander.id, recruited, incident.title);
 
   return { incidentId, roomId: room.id, recruitedAgents: recruited.length };
 }
 
-async function runVendorAbcDemoFlow(
+async function runAutomatedInvestigationFlow(
   incidentId: string,
   roomId: string,
   bandRoomId: string,
   commanderId: string,
-  agentIds: string[]
+  agentIds: string[],
+  incidentTitle: string
 ) {
   const agents = await prisma.agent.findMany({ where: { id: { in: agentIds } } });
   const byRole = Object.fromEntries(agents.map((a) => [a.role, a]));
@@ -77,18 +86,18 @@ async function runVendorAbcDemoFlow(
   const au = await wrapAgent(byRole.AuditAgent, incidentId, roomId, bandRoomId);
 
   // Financial forensics evidence
-  const ffAnalysis = await ff.analyze({ incident: "Vendor ABC fraud", focus: "payments" });
+  const ffAnalysis = await ff.analyze({ incident: incidentTitle, focus: "payments" });
   const evidence1 = await saveEvidence(incidentId, byRole.FinancialForensicsAgent.id, {
     evidenceType: "transaction",
     title: "Suspicious Invoice #INV-9847",
-    description: "Invoice for $847,000 with irregular approval chain to Vendor ABC",
+    description: `Invoice for $847,000 with irregular approval chain linked to ${incidentTitle}`,
     confidence: 0.92,
     metadata: ffAnalysis,
   });
   await ff.sendMessageToBand(byRole.ComplianceAgent.id, "EVIDENCE_SUBMISSION", "Suspicious vendor payment detected", {
     evidenceId: evidence1.id, amount: 847000,
   }, { confidence: 0.92 });
-  await ff.handoffTask(byRole.CommunicationAnalysisAgent.id, "Build communication timeline", { vendor: "Vendor ABC" });
+  await ff.handoffTask(byRole.CommunicationAnalysisAgent.id, "Build communication timeline", { incident: incidentTitle });
 
   // Digital forensics → identity
   await df.sendMessageToBand(byRole.IdentityInvestigationAgent.id, "TASK_HANDOFF", "Unusual login detected at 02:14 UTC", { account: "Finance Manager" });
@@ -96,14 +105,14 @@ async function runVendorAbcDemoFlow(
   const evidence2 = await saveEvidence(incidentId, byRole.IdentityInvestigationAgent.id, {
     evidenceType: "identity",
     title: "Privilege Abuse Confirmed",
-    description: "Finance Manager credentials used to approve Vendor ABC invoice",
+    description: `Finance Manager credentials used to approve suspicious invoice linked to ${incidentTitle}`,
     confidence: 0.94,
     metadata: idAnalysis,
   });
   await idAgent.sendMessageToBand(commanderId, "EVIDENCE_SUBMISSION", "Privilege abuse confirmed", { evidenceId: evidence2.id }, { confidence: 0.94 });
 
   // Communication analysis
-  const caAnalysis = await ca.analyze({ vendor: "Vendor ABC", type: "email" });
+  const caAnalysis = await ca.analyze({ incident: incidentTitle, type: "email" });
   await ca.sendMessageToBand(commanderId, "EVIDENCE_SUBMISSION", "Email coordination thread discovered", caAnalysis as Record<string, unknown>, { confidence: 0.89 });
 
   // Compliance review

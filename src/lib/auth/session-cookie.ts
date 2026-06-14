@@ -1,31 +1,30 @@
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME } from "./constants";
 
-const SESSION_TTL_SECONDS = 60 * 60 * 12;
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
-export type DemoAuthMethod = "password" | "otp";
-
-export interface DemoSession {
+export interface AuthSessionCookie {
+  accessToken: string;
+  refreshToken: string;
+  userId: string;
   email: string;
   name: string;
   role: string;
-  method: DemoAuthMethod;
-  createdAt: string;
+  organizationId: string;
 }
 
-interface CookieSession extends DemoSession {
+interface StoredSession extends AuthSessionCookie {
   exp: number;
 }
 
-function encodeSession(session: CookieSession) {
+function encodeSession(session: StoredSession) {
   return Buffer.from(JSON.stringify(session), "utf8").toString("base64url");
 }
 
-function decodeSession(raw: string): CookieSession | null {
+function decodeSession(raw: string): StoredSession | null {
   try {
-    const json = Buffer.from(raw, "base64url").toString("utf8");
-    const parsed = JSON.parse(json) as CookieSession;
-    if (!parsed.email || !parsed.name || !parsed.role || !parsed.exp) return null;
+    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as StoredSession;
+    if (!parsed.accessToken || !parsed.userId || !parsed.organizationId || !parsed.exp) return null;
     if (Date.now() > parsed.exp) return null;
     return parsed;
   } catch {
@@ -33,7 +32,7 @@ function decodeSession(raw: string): CookieSession | null {
   }
 }
 
-export async function writeDemoSession(session: DemoSession) {
+export async function writeAuthSession(session: AuthSessionCookie) {
   const exp = Date.now() + SESSION_TTL_SECONDS * 1000;
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, encodeSession({ ...session, exp }), {
@@ -45,23 +44,25 @@ export async function writeDemoSession(session: DemoSession) {
   });
 }
 
-export async function clearDemoSession() {
+export async function clearAuthSession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
-export async function readDemoSession(): Promise<DemoSession | null> {
+export async function readAuthSession(): Promise<AuthSessionCookie | null> {
   const cookieStore = await cookies();
   const raw = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (!raw) return null;
   const parsed = decodeSession(raw);
   if (!parsed) return null;
   return {
+    accessToken: parsed.accessToken,
+    refreshToken: parsed.refreshToken,
+    userId: parsed.userId,
     email: parsed.email,
     name: parsed.name,
     role: parsed.role,
-    method: parsed.method,
-    createdAt: parsed.createdAt,
+    organizationId: parsed.organizationId,
   };
 }
 

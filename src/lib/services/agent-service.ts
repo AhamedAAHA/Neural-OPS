@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { broadcastEvent } from "@/lib/realtime/broadcaster";
 import { wrapAgent, createDbAgent } from "@/lib/agents/registry";
-import { getBandAdapter } from "@/lib/band";
+import { BandService, getBandAdapter } from "@/lib/band";
 
 export async function saveEvidence(data: {
   incidentId: string;
@@ -27,6 +27,7 @@ export async function getIncidentEvidence(incidentId: string) {
 }
 
 export async function recruitAgent(roomId: string, agentRole: string, incidentId: string) {
+  const bandService = new BandService();
   const room = await prisma.investigationRoom.findUnique({
     where: { id: roomId },
     include: { agents: true },
@@ -35,10 +36,11 @@ export async function recruitAgent(roomId: string, agentRole: string, incidentId
 
   const agent = await createDbAgent(agentRole, roomId);
   const def = (await import("@/lib/agents/registry")).AGENT_DEFINITIONS.find((d) => d.role === agentRole)!;
-  const band = getBandAdapter();
-  await band.recruitAgent(room.bandRoomId, {
-    id: agent.id, name: def.name, role: def.role, tier: def.tier, capabilities: def.capabilities,
-  });
+  await bandService.recruitAgent(
+    room.bandRoomId,
+    { id: agent.id, name: def.name, role: def.role, tier: def.tier, capabilities: def.capabilities },
+    { incidentId, roomId }
+  );
 
   const commander = room.agents.find((a) => a.role === "IncidentCommanderAgent") ?? agent;
   const wrapper = await wrapAgent(commander, incidentId, roomId, room.bandRoomId);
@@ -92,8 +94,11 @@ export async function createHandoff(data: {
 }
 
 export async function getRoomMessages(roomId: string) {
+  const bandService = new BandService();
   const room = await prisma.investigationRoom.findUnique({ where: { id: roomId } });
   if (!room) return [];
+
+  await bandService.syncRoomMessages(roomId);
 
   const dbMessages = await prisma.agentMessage.findMany({
     where: { roomId },

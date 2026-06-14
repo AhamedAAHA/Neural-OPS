@@ -15,7 +15,7 @@ function GlobeWireframe() {
   return (
     <mesh ref={ref}>
       <sphereGeometry args={[2.2, 32, 32]} />
-      <meshBasicMaterial color="#22d3ee" wireframe transparent opacity={0.15} />
+      <meshBasicMaterial color="#22d3ee" wireframe transparent opacity={0.32} />
     </mesh>
   );
 }
@@ -155,9 +155,9 @@ export function ThreatGlobeScene() {
 
   return (
     <>
-      <ambientLight intensity={0.3} />
-      <pointLight position={[10, 10, 10]} intensity={0.8} color="#22d3ee" />
-      <pointLight position={[-10, -5, -10]} intensity={0.4} color="#a78bfa" />
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} intensity={1.05} color="#22d3ee" />
+      <pointLight position={[-10, -5, -10]} intensity={0.6} color="#a78bfa" />
 
       <group ref={groupRef}>
         <GlobeWireframe />

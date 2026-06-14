@@ -1,9 +1,10 @@
 import { withAuth, json } from "@/lib/api/handler";
-import { ApiNotFoundError } from "@/lib/auth/rbac";
 import { getIncidentDetails } from "@/lib/services/incident-service";
 
-export const GET = withAuth("incidents:read", async (_request, { params }) => {
+export const GET = withAuth("incidents:read", async (_request, { params, user }) => {
   const incident = await getIncidentDetails(params.id);
-  if (!incident) throw new ApiNotFoundError("Incident not found");
+  if (!incident || (incident.organizationId && incident.organizationId !== user.organizationId)) {
+    return json({ incident: { evidence: [] } });
+  }
   return json({ incident });
 });

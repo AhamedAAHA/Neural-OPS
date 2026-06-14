@@ -2,8 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["three"],
+  output: "standalone",
 };
 
 export default nextConfig;
 
-import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
+if (process.env.OPENNEXT_CLOUDFLARE_DEV === "true") {
+  void import("@opennextjs/cloudflare").then((m) => m.initOpenNextCloudflareForDev());
+}

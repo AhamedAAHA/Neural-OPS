@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, User, Activity, Play, Loader2, LogOut } from "lucide-react";
-import { DEMO_INCIDENT } from "@/lib/mock-data";
+import { Bell, Search, User, Activity, LogOut } from "lucide-react";
 import { CyberBadge } from "@/components/cyber/CyberPanel";
-import { NeonButton } from "@/components/ui/NeonButton";
 import { useNeuralOpsStore } from "@/store/neural-ops";
-import { useRunLiveDemo } from "@/providers/DemoRealtimeProvider";
 import { LIVE_STATUSES, NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { fetchJsonWithRetry, fetchWithRetry } from "@/lib/http/retry";
 
 interface TopNavProps {
   title: string;
@@ -20,14 +18,15 @@ interface TopNavProps {
 export function TopNav({ title, subtitle }: TopNavProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { liveStatus, demoRunning, incidentCount, timelineEvents, auditLogs } = useNeuralOpsStore();
-  const runLiveDemo = useRunLiveDemo();
+  const { liveStatus, incidentCount, timelineEvents, auditLogs, activeTenantId, setActiveTenant, selectedIncidentId } = useNeuralOpsStore();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [profile, setProfile] = useState({ name: "Incident Commander", email: "admin@neural-ops.ai" });
+  const [profile, setProfile] = useState({ name: "Operator", email: "" });
+  const [organizations, setOrganizations] = useState<Array<{ id: string; name: string }>>([]);
+  const [switchingOrg, setSwitchingOrg] = useState(false);
   const status = LIVE_STATUSES[liveStatus as keyof typeof LIVE_STATUSES];
 
   const quickLinks = useMemo(() => {
@@ -55,26 +54,36 @@ export function TopNav({ title, subtitle }: TopNavProps) {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/session")
-      .then(async (res) => {
-        if (!active || !res.ok) return;
-        const data = (await res.json()) as { user?: { name?: string; email?: string } };
-        if (!data.user) return;
-        setProfile({
-          name: data.user.name ?? "Incident Commander",
-          email: data.user.email ?? "admin@neural-ops.ai",
-        });
+    Promise.all([
+      fetchJsonWithRetry<{ user?: { name?: string; email?: string }; activeOrganizationId?: string }>("/api/auth/session"),
+      fetchJsonWithRetry<{ organizations?: Array<{ id: string; name: string }>; activeOrganizationId?: string }>("/api/organizations"),
+    ])
+      .then(([sessionData, orgData]) => {
+        if (!active) return;
+        if (sessionData.user) {
+          setProfile({
+            name: sessionData.user.name ?? "Operator",
+            email: sessionData.user.email ?? "",
+          });
+        }
+        if (sessionData.activeOrganizationId) {
+          setActiveTenant(sessionData.activeOrganizationId, orgData.organizations?.find((o) => o.id === sessionData.activeOrganizationId)?.name);
+        }
+        setOrganizations(orgData.organizations ?? []);
+        if (orgData.activeOrganizationId) {
+          setActiveTenant(orgData.activeOrganizationId, orgData.organizations?.find((o) => o.id === orgData.activeOrganizationId)?.name);
+        }
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, []);
+  }, [setActiveTenant]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetchWithRetry("/api/auth/logout", { method: "POST" }, { retries: 1 });
       router.push("/login");
     } finally {
       setLoggingOut(false);
@@ -83,7 +92,7 @@ export function TopNav({ title, subtitle }: TopNavProps) {
   };
 
   return (
-    <header className="glass-premium relative z-[80] flex h-11 shrink-0 items-center justify-between overflow-visible border-b border-cyan-500/15 px-4">
+    <header className="glass-premium relative z-40 flex h-11 shrink-0 items-center justify-between overflow-visible border-b border-cyan-500/15 px-4">
       <div className="flex min-w-0 items-center gap-4">
         <div className="min-w-0">
           <h1 className="font-display truncate text-sm font-semibold tracking-wide text-white">{title}</h1>
@@ -99,26 +108,32 @@ export function TopNav({ title, subtitle }: TopNavProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <NeonButton
-          size="sm"
-          variant={demoRunning ? "secondary" : "primary"}
-          onClick={runLiveDemo}
-          disabled={demoRunning}
-          className="hidden font-mono text-[10px] uppercase tracking-wider sm:flex"
+        <select
+          value={activeTenantId}
+          onChange={async (e) => {
+            const organizationId = e.target.value;
+            setSwitchingOrg(true);
+            try {
+              const res = await fetchWithRetry("/api/auth/switch-organization", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ organizationId }),
+              }, { retries: 1 });
+              if (!res.ok) return;
+              setActiveTenant(organizationId);
+              router.refresh();
+            } finally {
+              setSwitchingOrg(false);
+            }
+          }}
+          disabled={switchingOrg}
+          className="hidden rounded border border-cyan-500/20 bg-[#070b14] px-2 py-1 font-mono text-[10px] text-cyan-300 outline-none md:block"
         >
-          {demoRunning ? (
-            <>
-              <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-              Demo Running
-            </>
-          ) : (
-            <>
-              <Play className="mr-1.5 h-3 w-3" />
-              Run Live Demo
-            </>
-          )}
-        </NeonButton>
-        <CyberBadge label={DEMO_INCIDENT.id} variant="red" />
+          {organizations.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        <CyberBadge label={selectedIncidentId ?? "NO-INCIDENT"} variant="red" />
         <div className="hidden items-center gap-1 font-mono text-[11px] font-medium text-slate-400 md:flex">
           <Activity className="h-3 w-3 text-emerald-400" />
           LIVE · {incidentCount} incidents
@@ -169,7 +184,7 @@ export function TopNav({ title, subtitle }: TopNavProps) {
       </div>
 
       {searchOpen && (
-        <div className="absolute right-36 top-12 z-[90] w-[320px] rounded-lg border border-cyan-500/25 bg-[#070b14]/95 p-2 shadow-[0_10px_35px_rgba(0,0,0,0.45)] backdrop-blur">
+        <div className="absolute right-36 top-12 z-50 w-[320px] rounded-lg border border-cyan-500/25 bg-[#070b14]/95 p-2 shadow-[0_10px_35px_rgba(0,0,0,0.45)] backdrop-blur">
           <input
             autoFocus
             value={searchValue}
@@ -197,7 +212,7 @@ export function TopNav({ title, subtitle }: TopNavProps) {
       )}
 
       {notificationsOpen && (
-        <div className="absolute right-20 top-12 z-[90] w-[360px] rounded-lg border border-cyan-500/25 bg-[#070b14]/95 p-2 shadow-[0_10px_35px_rgba(0,0,0,0.45)] backdrop-blur">
+        <div className="absolute right-20 top-12 z-50 w-[360px] rounded-lg border border-cyan-500/25 bg-[#070b14]/95 p-2 shadow-[0_10px_35px_rgba(0,0,0,0.45)] backdrop-blur">
           <p className="px-2 pb-1 text-[11px] uppercase tracking-widest text-slate-500">Recent Alerts</p>
           <div className="max-h-64 space-y-1 overflow-y-auto">
             {notifications.map((notice) => (
@@ -212,7 +227,7 @@ export function TopNav({ title, subtitle }: TopNavProps) {
       )}
 
       {profileOpen && (
-        <div className="absolute right-3 top-12 z-[90] w-56 rounded-lg border border-cyan-500/25 bg-[#070b14]/95 p-2 shadow-[0_10px_35px_rgba(0,0,0,0.45)] backdrop-blur">
+        <div className="absolute right-3 top-12 z-50 w-56 rounded-lg border border-cyan-500/25 bg-[#070b14]/95 p-2 shadow-[0_10px_35px_rgba(0,0,0,0.45)] backdrop-blur">
           <p className="px-2 pt-1 text-xs text-slate-200">{profile.name}</p>
           <p className="px-2 pb-2 text-[11px] text-slate-500">{profile.email}</p>
           <button

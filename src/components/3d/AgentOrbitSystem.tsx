@@ -42,11 +42,11 @@ function NeuralCore() {
   return (
     <group ref={ref}>
       <mesh>
-        <sphereGeometry args={[0.5, 24, 24]} />
+        <sphereGeometry args={[0.5, 14, 14]} />
         <meshStandardMaterial color="#0e7490" emissive="#22d3ee" emissiveIntensity={0.75} wireframe />
       </mesh>
       <mesh>
-        <sphereGeometry args={[0.36, 16, 16]} />
+        <sphereGeometry args={[0.36, 10, 10]} />
         <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={0.55} transparent opacity={0.9} />
       </mesh>
       <Html center distanceFactor={8} position={[0, 0.85, 0]}>
@@ -67,8 +67,8 @@ function RecruitmentPulse({ target, color }: { target: THREE.Vector3; color: str
     ref.current.scale.setScalar(1 - t * 0.5);
   });
   return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[0.06, 8, 8]} />
+      <mesh ref={ref}>
+      <sphereGeometry args={[0.06, 6, 6]} />
       <meshBasicMaterial color={color} transparent opacity={0.9} />
     </mesh>
   );
@@ -141,7 +141,6 @@ function RingGuide({ radius }: { radius: number }) {
 export function AgentNetworkScene() {
   const [selectedId, setSelectedId] = useState("ic");
   const recruitedIds = useNeuralOpsStore((s) => s.recruitedAgentIds);
-  const demoRunning = useNeuralOpsStore((s) => s.demoRunning);
 
   const activeSet = useMemo(() => {
     const set = new Set(DEFAULT_ACTIVE);
@@ -163,8 +162,7 @@ export function AgentNetworkScene() {
         enableRotate
         minDistance={5}
         maxDistance={16}
-        autoRotate
-        autoRotateSpeed={0.25}
+        autoRotate={false}
       />
 
       <Grid
@@ -196,18 +194,10 @@ export function AgentNetworkScene() {
         />
       ))}
 
-      {(demoRunning || recruitedAgents.length > 0) &&
+      {recruitedAgents.length > 0 &&
         recruitedAgents.map((agent) => (
           <RecruitmentPulse key={`pulse-${agent.id}`} target={ringPosition(agent.ring, agent.angle)} color={agent.color} />
         ))}
-
-      {demoRunning && (
-        <>
-          <RecruitmentPulse target={ringPosition(1, 0.9)} color="#8b5cf6" />
-          <RecruitmentPulse target={ringPosition(2, 3.5)} color="#f87171" />
-          <RecruitmentPulse target={ringPosition(2, 4.5)} color="#ef4444" />
-        </>
-      )}
     </>
   );
 }

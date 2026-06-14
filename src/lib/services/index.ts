@@ -16,8 +16,25 @@ export { analyzeRisk, simulateRisk } from "./risk-service";
 export { reviewCompliance, reviewLegal } from "./compliance-service";
 export { requestApproval, respondToApproval } from "./approval-service";
 export { generateExecutiveReport, getReport } from "./report-service";
+export {
+  EnterpriseForecastAgent,
+  generateBoardIntelligenceReport,
+  getLatestBoardIntelligenceReport,
+} from "./executive-intelligence-service";
+export {
+  WORKFLOW_ACTIONS,
+  listWorkflows,
+  listWorkflowExecutions,
+  createWorkflow,
+  updateWorkflow,
+  deleteWorkflow,
+  executeWorkflowsForTrigger,
+} from "./workflow-automation-service";
 export { processVoiceTranscript, transcribeAudio } from "./voice-service";
 export { AuditLogger, logAuditEvent, getAuditLogs } from "./audit-service";
+export { fetchIntelligenceSignals, queryVendorIntelligence, searchKnowledge, getVendorMemory } from "./intelligence-service";
+export { getDecisionOptions, getExecutiveRecommendation, buildExecutiveDecision, ensureApprovalChain } from "./decision-service";
+export { MemoryAgent } from "../agents/memory-agent";
 
 // Aliased module names per architecture spec
 export { createIncident as IncidentService_create } from "./incident-service";
@@ -31,6 +48,8 @@ export { requestApproval as ApprovalService_request, respondToApproval as Approv
 export { generateExecutiveReport as ReportService_generate, getReport as ReportService_get } from "./report-service";
 export { processVoiceTranscript as VoiceCommandService_process, transcribeAudio as VoiceCommandService_transcribe } from "./voice-service";
 export { broadcastEvent as RealtimeService_broadcast } from "../realtime/broadcaster";
-export { getBandAdapter, MockBandAdapter, RealBandAdapter } from "../band";
+export { getBandAdapter, MockBandAdapter, RealBandAdapter, BandService } from "../band";
 export { AIProviderRouter } from "../ai/router";
 export { SpeechmaticsService } from "../speechmatics";
+export { getBrightData, MockBrightDataAdapter } from "../brightdata";
+export { calculateEnterpriseRiskScore, deriveRiskBreakdown, riskLevelFromScore } from "../risk-scoring";

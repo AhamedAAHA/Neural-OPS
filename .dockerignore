@@ -1,0 +1,15 @@
+.git
+.gitignore
+.next
+node_modules
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+.env
+.env.local
+.env.*.local
+.dev.vars*
+.open-next
+.wrangler
+coverage
+*.tsbuildinfo

@@ -1,3 +1,5 @@
+export type BusinessDomain = "Cybersecurity" | "Finance" | "Compliance" | "Supply Chain" | "Operations" | "Reputation";
+
 export type CrisisType =
   | "Data Breach"
   | "Ransomware Attack"
@@ -107,6 +109,79 @@ export interface RiskScenario {
   recommendation: string;
   confidence: number;
   agentNote: string;
+}
+
+export interface RiskBreakdown {
+  threatSeverity: number;
+  financialExposure: number;
+  complianceExposure: number;
+  vendorRisk: number;
+  operationalImpact: number;
+  reputationImpact: number;
+}
+
+export interface DecisionOption {
+  id: string;
+  label: string;
+  rank: number;
+  recommended: boolean;
+  confidence: number;
+  expectedSavings: number;
+  impacts: {
+    financial: number;
+    compliance: number;
+    legal: number;
+    operational: number;
+    customer: number;
+    reputation: number;
+  };
+  agentSupport: string[];
+  agentOpposition: string[];
+  rationale: string;
+}
+
+export interface ApprovalChainStep {
+  id: string;
+  role: string;
+  name: string;
+  status: "approved" | "pending" | "rejected" | "escalated";
+  timestamp: string | null;
+  note: string | null;
+}
+
+export interface IntelligenceSignal {
+  id: string;
+  source: string;
+  agent: string;
+  signal: string;
+  severity: Severity;
+  timestamp: string;
+}
+
+export interface KnowledgeDocument {
+  id: string;
+  name: string;
+  type: string;
+  uploaded: string;
+  tags: string[];
+}
+
+export interface ExecutiveRecommendation {
+  action: string;
+  reason: string;
+  expectedSavings: number;
+  complianceImpact: string;
+  operationalImpact: string;
+  legalExposure: string;
+  confidence: number;
+  ranking: string[];
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  industry: string;
+  region: string;
 }
 
 export interface ApprovalRequest {

@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { BandMessage, TimelineEvent } from "@/lib/types";
-import { BAND_MESSAGES, TIMELINE, DEMO_INCIDENT } from "@/lib/mock-data";
+import type { ApprovalChainStep, BandMessage, RiskBreakdown, TimelineEvent } from "@/lib/types";
+import { calculateEnterpriseRiskScore } from "@/lib/risk-scoring";
 
 export type LiveStatus =
   | "idle"
@@ -18,134 +18,199 @@ export interface AuditLogEntry {
   type: string;
 }
 
-export interface DemoFeature {
+export interface IntelligenceSignal {
   id: string;
-  label: string;
-  done: boolean;
+  source: string;
+  agent: string;
+  signal: string;
+  severity: string;
+  timestamp: string;
 }
+
+const EMPTY_RISK_BREAKDOWN: RiskBreakdown = {
+  threatSeverity: 0,
+  financialExposure: 0,
+  complianceExposure: 0,
+  vendorRisk: 0,
+  operationalImpact: 0,
+  reputationImpact: 0,
+};
 
 interface NeuralOpsState {
   selectedIncidentId: string | null;
   selectedNodeId: string | null;
+  activeTenantId: string;
+  activeTenantName: string;
   liveStatus: LiveStatus;
   bandConnected: boolean;
   activeAgentCount: number;
   riskScore: number;
+  riskBreakdown: RiskBreakdown;
   incidentCount: number;
+  openApprovals: number;
   threatsBlocked: number;
   compliancePct: number;
+  complianceExposure: number;
+  financialExposure: number;
+  vendorRiskExposure: number;
   evidenceCount: number;
   approvalStatus: string;
+  approvalChain: ApprovalChainStep[];
   aimlLatency: number;
   featherlessLatency: number;
+  brightDataLatency: number;
   tokenUsage: number;
   bandMessages: BandMessage[];
   timelineEvents: TimelineEvent[];
   auditLogs: AuditLogEntry[];
-  demoFeatures: DemoFeature[];
-  demoRunning: boolean;
+  intelligenceSignals: IntelligenceSignal[];
+  executiveRecommendation: { action: string; rationale: string; confidence: number };
   recruitedAgentIds: string[];
   setSelectedIncident: (id: string | null) => void;
   setSelectedNode: (id: string | null) => void;
+  setActiveTenant: (id: string, name?: string) => void;
   setLiveStatus: (status: LiveStatus) => void;
   setRiskScore: (score: number) => void;
+  setRiskBreakdown: (b: RiskBreakdown) => void;
   setActiveAgentCount: (n: number) => void;
   addBandMessage: (msg: BandMessage) => void;
   addTimelineEvent: (ev: TimelineEvent) => void;
   addAuditLog: (entry: AuditLogEntry) => void;
-  markDemoFeature: (id: string) => void;
-  setDemoRunning: (v: boolean) => void;
+  addIntelligenceSignal: (signal: IntelligenceSignal) => void;
+  advanceApprovalStep: (stepId: string, status: ApprovalChainStep["status"], note?: string) => void;
   recruitAgent: (id: string) => void;
-  tickDemoValues: () => void;
-  resetDemo: () => void;
+  hydrateDashboard: (dashboard: Record<string, unknown>) => void;
+  hydrateIncidents: (incidents: Array<{ id: string; title: string; status: string; severity: string }>) => void;
+  hydrateIntelligence: (signals: IntelligenceSignal[]) => void;
+  hydrateApprovals: (approvals: Array<{ id: string; status: string; title?: string; approverRole?: string | null; approverName?: string | null; decidedBy?: { name: string; role: string } | null; requestedBy?: { name: string; role: string } | null; updatedAt?: string | null; decisionNote?: string | null }>) => void;
+  hydrateExecutiveRecommendation: (decision: { recommendedAction?: string; reasoningChain?: string[]; confidenceScore?: number }) => void;
 }
 
-const INITIAL_FEATURES: DemoFeature[] = [
-  { id: "band_room", label: "Band room creation", done: false },
-  { id: "recruitment", label: "Agent recruitment", done: false },
-  { id: "context", label: "Structured context sharing", done: false },
-  { id: "handoff", label: "Task handoff", done: false },
-  { id: "evidence", label: "Evidence submission", done: false },
-  { id: "compliance", label: "Compliance review", done: false },
-  { id: "legal", label: "Legal escalation", done: false },
-  { id: "risk", label: "Risk simulation", done: false },
-  { id: "approval", label: "Human approval", done: false },
-  { id: "executive", label: "Executive report", done: false },
-  { id: "audit", label: "Audit trail", done: false },
-  { id: "aiml", label: "AIML API routing", done: false },
-  { id: "featherless", label: "Featherless routing", done: false },
-  { id: "speechmatics", label: "Speechmatics voice", done: false },
-];
+function formatEventTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
 
-const INITIAL_AUDIT: AuditLogEntry[] = [
-  { id: "a1", time: "08:42", actor: "Security Monitoring", action: "Firewall alert logged", type: "detection" },
-  { id: "a2", time: "08:42", actor: "Incident Commander", action: "Band room ROOM-VABC-001 created", type: "band_message" },
-  { id: "a3", time: "09:35", actor: "Legal Agent", action: "Human approval requested", type: "approval" },
-];
-
-export const useNeuralOpsStore = create<NeuralOpsState>((set, get) => ({
-  selectedIncidentId: DEMO_INCIDENT.id,
+export const useNeuralOpsStore = create<NeuralOpsState>((set) => ({
+  selectedIncidentId: null,
   selectedNodeId: null,
-  liveStatus: "awaiting_approval",
-  bandConnected: true,
-  activeAgentCount: 7,
-  riskScore: 87,
-  incidentCount: 3,
-  threatsBlocked: 847,
-  compliancePct: 94,
-  evidenceCount: 4,
-  approvalStatus: "Pending",
-  aimlLatency: 142,
-  featherlessLatency: 198,
-  tokenUsage: 12480,
-  bandMessages: [...BAND_MESSAGES],
-  timelineEvents: [...TIMELINE],
-  auditLogs: [...INITIAL_AUDIT],
-  demoFeatures: INITIAL_FEATURES.map((f) => ({ ...f })),
-  demoRunning: false,
-  recruitedAgentIds: ["ic", "df", "ff"],
+  activeTenantId: "",
+  activeTenantName: "",
+  liveStatus: "idle",
+  bandConnected: false,
+  activeAgentCount: 0,
+  riskScore: 0,
+  riskBreakdown: { ...EMPTY_RISK_BREAKDOWN },
+  incidentCount: 0,
+  openApprovals: 0,
+  threatsBlocked: 0,
+  compliancePct: 0,
+  complianceExposure: 0,
+  financialExposure: 0,
+  vendorRiskExposure: 0,
+  evidenceCount: 0,
+  approvalStatus: "No pending approvals",
+  approvalChain: [],
+  aimlLatency: 0,
+  featherlessLatency: 0,
+  brightDataLatency: 0,
+  tokenUsage: 0,
+  bandMessages: [],
+  timelineEvents: [],
+  auditLogs: [],
+  intelligenceSignals: [],
+  executiveRecommendation: { action: "Awaiting incident analysis", rationale: "No executive recommendation generated yet.", confidence: 0 },
+  recruitedAgentIds: [],
   setSelectedIncident: (id) => set({ selectedIncidentId: id }),
   setSelectedNode: (id) => set({ selectedNodeId: id }),
+  setActiveTenant: (id, name) => set({ activeTenantId: id, ...(name ? { activeTenantName: name } : {}) }),
   setLiveStatus: (status) => set({ liveStatus: status }),
   setRiskScore: (score) => set({ riskScore: score }),
+  setRiskBreakdown: (b) => set({ riskBreakdown: b, riskScore: calculateEnterpriseRiskScore(b) }),
   setActiveAgentCount: (n) => set({ activeAgentCount: n }),
   addBandMessage: (msg) => set((s) => ({ bandMessages: [...s.bandMessages, msg] })),
   addTimelineEvent: (ev) => set((s) => ({ timelineEvents: [...s.timelineEvents, ev] })),
   addAuditLog: (entry) => set((s) => ({ auditLogs: [entry, ...s.auditLogs] })),
-  markDemoFeature: (id) =>
+  addIntelligenceSignal: (signal) => set((s) => ({ intelligenceSignals: [signal, ...s.intelligenceSignals] })),
+  advanceApprovalStep: (stepId, status, note) =>
     set((s) => ({
-      demoFeatures: s.demoFeatures.map((f) => (f.id === id ? { ...f, done: true } : f)),
+      approvalChain: s.approvalChain.map((step) =>
+        step.id === stepId
+          ? {
+              ...step,
+              status,
+              timestamp: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+              note: note ?? `${status} by ${step.role}`,
+            }
+          : step
+      ),
+      openApprovals: Math.max(0, s.openApprovals - (status === "approved" ? 1 : 0)),
     })),
-  setDemoRunning: (v) => set({ demoRunning: v }),
   recruitAgent: (id) =>
     set((s) => ({
       recruitedAgentIds: s.recruitedAgentIds.includes(id) ? s.recruitedAgentIds : [...s.recruitedAgentIds, id],
       activeAgentCount: s.recruitedAgentIds.includes(id) ? s.activeAgentCount : s.activeAgentCount + 1,
     })),
-  tickDemoValues: () => {
-    const s = get();
+  hydrateDashboard: (dashboard) =>
+    set((state) => {
+      const metrics = (dashboard.metrics as Record<string, number> | undefined) ?? {};
+      const services = (dashboard.services as Record<string, { latency?: number; status?: string; activeConnections?: number }> | undefined) ?? {};
+      const api = (dashboard.api as { responseTimeMs?: number } | undefined) ?? {};
+      const latestEvents = (dashboard.latestEvents as Array<{ id: string; source: string; operation: string; message?: string | null; createdAt: string; level?: string; status?: string }> | undefined) ?? [];
+
+      const bandStatus = services.band?.status ?? "down";
+      const realtimeConnections = (services.realtime as { activeConnections?: number } | undefined)?.activeConnections ?? 0;
+
+      return {
+        incidentCount: metrics.activeInvestigations ?? state.incidentCount,
+        activeAgentCount: realtimeConnections,
+        bandConnected: bandStatus === "healthy" || realtimeConnections > 0,
+        aimlLatency: Math.round(services.agent?.latency ?? api.responseTimeMs ?? 0),
+        featherlessLatency: Math.round(services.database?.latency ?? 0),
+        brightDataLatency: Math.round(services.brightData?.latency ?? 0),
+        threatsBlocked: latestEvents.filter((event) => event.level === "error" || event.status === "error").length,
+        compliancePct: services.database?.status === "healthy" ? 100 : services.database?.status === "degraded" ? 75 : 0,
+        auditLogs: latestEvents.slice(0, 8).map((event) => ({
+          id: event.id,
+          time: formatEventTime(event.createdAt),
+          actor: event.source,
+          action: event.message ?? event.operation,
+          type: event.source.toLowerCase(),
+        })),
+      };
+    }),
+  hydrateIncidents: (incidents) =>
+    set((state) => ({
+      incidentCount: incidents.length,
+      selectedIncidentId: state.selectedIncidentId ?? incidents[0]?.id ?? null,
+      liveStatus: incidents.some((i) => i.status === "pending_approval")
+        ? "awaiting_approval"
+        : incidents.some((i) => i.status === "investigating")
+          ? "investigating"
+          : incidents.length
+            ? "idle"
+            : "idle",
+    })),
+  hydrateIntelligence: (signals) => set({ intelligenceSignals: signals }),
+  hydrateApprovals: (approvals) =>
     set({
-      aimlLatency: Math.max(90, s.aimlLatency + Math.floor(Math.random() * 20 - 10)),
-      featherlessLatency: Math.max(120, s.featherlessLatency + Math.floor(Math.random() * 24 - 12)),
-      tokenUsage: s.tokenUsage + Math.floor(Math.random() * 400 + 100),
-      threatsBlocked: s.threatsBlocked + (Math.random() > 0.7 ? 1 : 0),
-      riskScore: Math.min(99, Math.max(75, s.riskScore + Math.floor(Math.random() * 5 - 2))),
-      compliancePct: Math.min(99, Math.max(90, s.compliancePct + (Math.random() > 0.8 ? 1 : 0))),
-    });
-  },
-  resetDemo: () =>
+      approvalChain: approvals.map((approval) => ({
+        id: approval.id,
+        role: approval.approverRole ?? approval.requestedBy?.role ?? "Approver",
+        name: approval.approverName ?? approval.decidedBy?.name ?? approval.requestedBy?.name ?? "Pending assignee",
+        status: approval.status as ApprovalChainStep["status"],
+        timestamp: approval.updatedAt ? formatEventTime(approval.updatedAt) : null,
+        note: approval.decisionNote ?? approval.title ?? null,
+      })),
+      openApprovals: approvals.filter((approval) => approval.status === "pending").length,
+      approvalStatus: approvals.some((approval) => approval.status === "pending") ? "Pending Approval" : "No pending approvals",
+    }),
+  hydrateExecutiveRecommendation: (decision) =>
     set({
-      bandMessages: [...BAND_MESSAGES],
-      timelineEvents: [...TIMELINE],
-      auditLogs: [...INITIAL_AUDIT],
-      demoFeatures: INITIAL_FEATURES.map((f) => ({ ...f })),
-      recruitedAgentIds: ["ic", "df", "ff"],
-      activeAgentCount: 7,
-      riskScore: 87,
-      evidenceCount: 4,
-      approvalStatus: "Pending",
-      liveStatus: "awaiting_approval",
-      demoRunning: false,
+      executiveRecommendation: {
+        action: decision.recommendedAction ?? "Awaiting incident analysis",
+        rationale: decision.reasoningChain?.[0] ?? "No executive recommendation generated yet.",
+        confidence: decision.confidenceScore ?? 0,
+      },
     }),
 }));
 

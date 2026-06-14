@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getBandAdapter } from "@/lib/band";
+import { BandService } from "@/lib/band";
 import { broadcastEvent } from "@/lib/realtime/broadcaster";
 import { AGENT_DEFINITIONS, createDbAgent, wrapAgent } from "@/lib/agents/registry";
 import type { AuthUser } from "@/lib/auth/session";
@@ -9,21 +9,26 @@ export async function createIncident(
   user: AuthUser,
   data: { title: string; description: string; type: string; severity: Severity }
 ) {
-  const band = getBandAdapter();
+  const bandService = new BandService();
 
   const incident = await prisma.incident.create({
     data: {
       ...data,
       status: "open",
       createdBy: user.id,
+      organizationId: user.organizationId,
     },
   });
 
-  const bandRoomId = await band.createRoom(`Investigation: ${data.title}`, {
-    incidentId: incident.id,
-    type: data.type,
-    severity: data.severity,
-  });
+  const bandRoomId = await bandService.createRoom(
+    `Investigation: ${data.title}`,
+    {
+      incidentId: incident.id,
+      type: data.type,
+      severity: data.severity,
+    },
+    { incidentId: incident.id }
+  );
 
   const room = await prisma.investigationRoom.create({
     data: {
@@ -34,16 +39,30 @@ export async function createIncident(
     },
   });
 
+  await prisma.bandRoom.updateMany({
+    where: { roomExternalId: bandRoomId },
+    data: {
+      organizationId: user.organizationId,
+      name: room.name,
+      status: room.status,
+      metadataJson: { source: "band_sdk", incidentType: data.type },
+    },
+  });
+
   const commanderDef = AGENT_DEFINITIONS.find((d) => d.className === "IncidentCommanderAgent")!;
   const commander = await createDbAgent("IncidentCommanderAgent", room.id);
 
-  await band.recruitAgent(bandRoomId, {
-    id: commander.id,
-    name: commanderDef.name,
-    role: commanderDef.role,
-    tier: commanderDef.tier,
-    capabilities: commanderDef.capabilities,
-  });
+  await bandService.recruitAgent(
+    bandRoomId,
+    {
+      id: commander.id,
+      name: commanderDef.name,
+      role: commanderDef.role,
+      tier: commanderDef.tier,
+      capabilities: commanderDef.capabilities,
+    },
+    { incidentId: incident.id, roomId: room.id }
+  );
 
   const agent = await wrapAgent(commander, incident.id, room.id, bandRoomId);
   await agent.sendMessageToBand(null, "AGENT_RECRUITMENT", `Investigation room created for: ${data.title}`, {
@@ -76,7 +95,12 @@ export async function getIncidentDetails(id: string) {
     where: { id },
     include: {
       rooms: { include: { agents: true, messages: { orderBy: { createdAt: "asc" }, take: 50 } } },
-      evidence: true,
+      evidence: { include: { sourceAgent: true }, orderBy: { createdAt: "desc" } },
+      vendorIntelligence: {
+        include: { vendor: { select: { id: true, name: true, country: true, industry: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
       riskAssessments: { orderBy: { createdAt: "desc" }, take: 1 },
       complianceFindings: true,
       legalFindings: true,
@@ -88,9 +112,10 @@ export async function getIncidentDetails(id: string) {
   return incident;
 }
 
-export async function listIncidents(filters?: { severity?: string; status?: string }) {
+export async function listIncidents(filters?: { severity?: string; status?: string; organizationId?: string }) {
   return prisma.incident.findMany({
     where: {
+      ...(filters?.organizationId ? { organizationId: filters.organizationId } : {}),
       ...(filters?.severity ? { severity: filters.severity as Severity } : {}),
       ...(filters?.status ? { status: filters.status as never } : {}),
     },

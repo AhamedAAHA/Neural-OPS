@@ -1,48 +1,42 @@
 import type { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { ORGANIZATION_COOKIE_NAME } from "./constants";
+import { readAuthSession } from "./session-cookie";
 
 export interface AuthUser {
   id: string;
   email: string;
   name: string;
   role: UserRole;
+  organizationId: string;
 }
 
 export async function getAuthUser(request: Request): Promise<AuthUser | null> {
-  const devMode = process.env.AUTH_DEV_MODE === "true";
+  const requestOrgId = request.headers.get("x-organization-id") ?? undefined;
+
+  const authSession = await readAuthSession();
+  if (authSession) {
+    const role = authSession.role as UserRole;
+    return {
+      id: authSession.userId,
+      email: authSession.email,
+      name: authSession.name,
+      role,
+      organizationId: requestOrgId ?? authSession.organizationId,
+    };
+  }
 
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
-    const user = await resolveSupabaseUser(token);
+    const user = await resolveSupabaseUser(token, requestOrgId);
     if (user) return user;
-  }
-
-  if (devMode) {
-    const userId = request.headers.get("x-user-id") ?? process.env.DEV_USER_ID;
-    const role = (request.headers.get("x-user-role") ?? process.env.DEV_USER_ROLE ?? "analyst") as UserRole;
-
-    if (userId) {
-      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
-      if (dbUser) {
-        return { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role };
-      }
-    }
-
-    const email = "dev@neural-ops.local";
-    let dbUser = await prisma.user.findUnique({ where: { email } });
-    if (!dbUser) {
-      dbUser = await prisma.user.create({
-        data: { name: "Dev Analyst", email, role: role ?? "analyst" },
-      });
-    }
-    return { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role };
   }
 
   return null;
 }
 
-async function resolveSupabaseUser(token: string): Promise<AuthUser | null> {
+async function resolveSupabaseUser(token: string, requestOrgId?: string): Promise<AuthUser | null> {
   const { createSupabaseAdmin } = await import("@/lib/supabase/client");
   const supabase = createSupabaseAdmin();
   if (!supabase) return null;
@@ -54,6 +48,24 @@ async function resolveSupabaseUser(token: string): Promise<AuthUser | null> {
     where: { authId: data.user.id },
   });
 
-  if (!dbUser) return null;
-  return { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role };
+  if (!dbUser || !dbUser.organizationId) return null;
+  if (requestOrgId && requestOrgId !== dbUser.organizationId && dbUser.role !== "admin") return null;
+  return {
+    id: dbUser.id,
+    email: dbUser.email,
+    name: dbUser.name,
+    role: dbUser.role,
+    organizationId: requestOrgId ?? dbUser.organizationId,
+  };
+}
+
+export function getOrganizationFromRequest(request: Request): string | null {
+  const headerOrg = request.headers.get("x-organization-id");
+  if (headerOrg) return headerOrg;
+
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const parts = cookieHeader.split(";").map((part) => part.trim());
+  const found = parts.find((part) => part.startsWith(`${ORGANIZATION_COOKIE_NAME}=`));
+  if (!found) return null;
+  return decodeURIComponent(found.split("=")[1] ?? "");
 }

@@ -1,4 +1,5 @@
 import { completeWithFallback } from "@/lib/ai/providers";
+import { recordMonitoringEvent } from "@/lib/observability/store";
 
 const ALLOWED_AUDIO_TYPES = ["audio/wav", "audio/mpeg", "audio/mp4", "audio/webm", "audio/ogg"];
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
@@ -10,6 +11,7 @@ export interface TranscriptionResult {
 }
 
 export async function transcribeAudio(file: File): Promise<TranscriptionResult> {
+  const started = Date.now();
   if (!ALLOWED_AUDIO_TYPES.includes(file.type) && !file.name.match(/\.(wav|mp3|mp4|webm|ogg|m4a)$/i)) {
     throw new Error("Unsupported audio format");
   }
@@ -19,7 +21,18 @@ export async function transcribeAudio(file: File): Promise<TranscriptionResult> 
 
   const apiKey = process.env.SPEECHMATICS_API_KEY;
   if (!apiKey) {
-    return mockTranscribe(file.name);
+    if (process.env.USE_MOCK_SPEECHMATICS === "true") {
+      const mock = mockTranscribe(file.name);
+      void recordMonitoringEvent({
+        source: "SPEECHMATICS",
+        operation: "speechmatics.transcribe",
+        status: "mock",
+        durationMs: Date.now() - started,
+        details: { fileName: file.name, mode: "mock" },
+      }).catch(() => {});
+      return mock;
+    }
+    throw new Error("Speechmatics is not configured. Set SPEECHMATICS_API_KEY or USE_MOCK_SPEECHMATICS=true for local development.");
   }
 
   const buffer = await file.arrayBuffer();
@@ -42,15 +55,24 @@ export async function transcribeAudio(file: File): Promise<TranscriptionResult> 
 
   if (!res.ok) {
     const err = await res.text();
+    void recordMonitoringEvent({
+      source: "SPEECHMATICS",
+      level: "error",
+      operation: "speechmatics.transcribe",
+      status: "error",
+      durationMs: Date.now() - started,
+      message: `HTTP ${res.status}`,
+      details: { error: err.slice(0, 180) },
+    }).catch(() => {});
     throw new Error(`Speechmatics error: ${err}`);
   }
 
   const job = await res.json();
-  const transcript = await pollSpeechmaticsJob(apiKey, job.id);
+  const transcript = await pollSpeechmaticsJob(apiKey, job.id, started);
   return transcript;
 }
 
-async function pollSpeechmaticsJob(apiKey: string, jobId: string): Promise<TranscriptionResult> {
+async function pollSpeechmaticsJob(apiKey: string, jobId: string, startedAt: number): Promise<TranscriptionResult> {
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const res = await fetch(`https://asr.api.speechmatics.com/v2/jobs/${jobId}`, {
@@ -59,18 +81,40 @@ async function pollSpeechmaticsJob(apiKey: string, jobId: string): Promise<Trans
     const data = await res.json();
     if (data.job?.status === "done") {
       const text = data.results?.transcript ?? "";
+      void recordMonitoringEvent({
+        source: "SPEECHMATICS",
+        operation: "speechmatics.transcribe",
+        durationMs: Date.now() - startedAt,
+        details: { jobId, status: "done", transcriptLength: text.length },
+      }).catch(() => {});
       return { transcript: text, confidence: 0.9, raw: data };
     }
     if (data.job?.status === "rejected") {
+      void recordMonitoringEvent({
+        source: "SPEECHMATICS",
+        level: "error",
+        operation: "speechmatics.transcribe",
+        status: "rejected",
+        durationMs: Date.now() - startedAt,
+        details: { jobId },
+      }).catch(() => {});
       throw new Error("Speechmatics transcription rejected");
     }
   }
+  void recordMonitoringEvent({
+    source: "SPEECHMATICS",
+    level: "error",
+    operation: "speechmatics.transcribe",
+    status: "timeout",
+    durationMs: Date.now() - startedAt,
+    details: { jobId },
+  }).catch(() => {});
   throw new Error("Speechmatics transcription timeout");
 }
 
 function mockTranscribe(filename: string): TranscriptionResult {
   const samples = [
-    "Start investigation for Vendor ABC fraud",
+    "Start investigation for vendor fraud",
     "Ask Compliance Agent to review GDPR exposure",
     "Generate executive report",
     "Escalate this incident to Legal Agent",

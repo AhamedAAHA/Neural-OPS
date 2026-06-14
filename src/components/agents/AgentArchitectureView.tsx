@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { AppShell } from "@/components/layout/AppShell";
-import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
-import { AGENT_TIERS, AGENTS } from "@/lib/mock-data";
-import { MODEL_PROVIDERS } from "@/lib/constants";
+import { useEffect, useMemo, useState } from "react";
 import { Bot, Radio, Terminal } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { CyberBadge, CyberPanel } from "@/components/cyber/CyberPanel";
+import { MODEL_PROVIDERS } from "@/lib/constants";
+import { fetchJsonWithRetry } from "@/lib/http/retry";
 import { useNeuralOpsStore } from "@/store/neural-ops";
 
 const AgentNetworkCanvas = dynamic(
@@ -17,153 +18,150 @@ const AgentNetworkScene = dynamic(
   { ssr: false }
 );
 
-const TIER_COLORS = [
-  { border: "border-cyan-500/30", text: "text-cyan-400", glow: "cyan" as const, label: "DET" },
-  { border: "border-violet-500/30", text: "text-violet-400", glow: "violet" as const, label: "INV" },
-  { border: "border-emerald-500/30", text: "text-emerald-400", glow: "emerald" as const, label: "INT" },
-  { border: "border-red-500/30", text: "text-red-400", glow: "red" as const, label: "GOV" },
-  { border: "border-amber-500/30", text: "text-amber-400", glow: "amber" as const, label: "RSP" },
-];
+interface ApiAgent {
+  id: string;
+  name: string;
+  role: string;
+  tier: "Detection" | "Investigation" | "Intelligence" | "Governance" | "Response";
+  status: "idle" | "active" | "recruiting" | "waiting" | "completed" | "offline";
+  provider: "AIML_API" | "FEATHERLESS" | "OPENAI" | "LOCAL";
+}
 
-const AGENT_MODELS: Record<string, string> = {
-  "Security Monitoring Agent": "AIML",
-  "Threat Intelligence Agent": "AIML",
-  "Social Intelligence Agent": "Band",
-  "Incident Commander Agent": "AIML",
-  "Digital Forensics Agent": "FLT",
-  "Communication Analysis Agent": "FLT",
-  "Financial Forensics Agent": "AIML",
-  "Identity Investigation Agent": "AIML",
-  "Timeline Reconstruction Agent": "LOC",
-  "Correlation Agent": "AIML",
-  "Root Cause Agent": "FLT",
-  "Impact Analysis Agent": "Band",
-  "Future Risk Simulation Agent": "AIML",
-  "Compliance Agent": "Band",
-  "Legal Agent": "FLT",
-  "Audit Agent": "LOC",
-  "PR Agent": "Band",
-  "Customer Communication Agent": "FLT",
-  "Remediation Agent": "LOC",
-  "Executive Strategy Agent": "AIML",
-};
+interface ProviderEntry {
+  name: string;
+  configured: boolean;
+  model: string;
+}
 
-const ONLINE_AGENTS = new Set([
-  "Incident Commander Agent",
-  "Digital Forensics Agent",
-  "Financial Forensics Agent",
-  "Communication Analysis Agent",
-  "Identity Investigation Agent",
-  "Compliance Agent",
-  "Legal Agent",
-  "Future Risk Simulation Agent",
-  "Executive Strategy Agent",
-  "Audit Agent",
-  "Security Monitoring Agent",
-  "Correlation Agent",
-]);
-
-const PROVIDER_STATS: Record<string, { load: number }> = {
-  "AIML API": { load: 68 },
-  Featherless: { load: 52 },
-  Band: { load: 81 },
-  Speechmatics: { load: 44 },
+const TIER_COLORS = {
+  Detection: { border: "border-cyan-500/30", text: "text-cyan-400", glow: "cyan" as const },
+  Investigation: { border: "border-violet-500/30", text: "text-violet-400", glow: "violet" as const },
+  Intelligence: { border: "border-emerald-500/30", text: "text-emerald-400", glow: "emerald" as const },
+  Governance: { border: "border-red-500/30", text: "text-red-400", glow: "red" as const },
+  Response: { border: "border-amber-500/30", text: "text-amber-400", glow: "amber" as const },
 };
 
 function modelVariant(model: string): "cyan" | "violet" | "emerald" | "default" {
-  if (model === "AIML") return "cyan";
-  if (model === "FLT") return "violet";
-  if (model === "Band") return "emerald";
+  if (model === "AIML_API" || model === "OPENAI") return "cyan";
+  if (model === "FEATHERLESS") return "violet";
+  if (model === "LOCAL") return "emerald";
   return "default";
 }
 
 export function AgentArchitectureView() {
-  const { aimlLatency, featherlessLatency, recruitedAgentIds, activeAgentCount } = useNeuralOpsStore();
+  const [agents, setAgents] = useState<ApiAgent[]>([]);
+  const [providers, setProviders] = useState<ProviderEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const { aimlLatency, featherlessLatency } = useNeuralOpsStore();
+
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      try {
+        setError(null);
+        const [agentsData, providersData] = await Promise.all([
+          fetchJsonWithRetry<{ agents: ApiAgent[] }>("/api/agents", { cache: "no-store" }, { retries: 2 }),
+          fetchJsonWithRetry<{ providers: ProviderEntry[] }>("/api/ai/providers", { cache: "no-store" }, { retries: 2 }),
+        ]);
+        if (!active) return;
+        setAgents(agentsData.agents ?? []);
+        setProviders(providersData.providers ?? []);
+        useNeuralOpsStore.setState({
+          activeAgentCount: (agentsData.agents ?? []).filter((agent) => agent.status === "active" || agent.status === "waiting").length,
+        });
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Failed to load architecture data");
+      }
+    };
+    void run();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const groupedByTier = useMemo(() => {
+    const map = new Map<ApiAgent["tier"], ApiAgent[]>();
+    for (const agent of agents) {
+      const list = map.get(agent.tier) ?? [];
+      list.push(agent);
+      map.set(agent.tier, list);
+    }
+    return Array.from(map.entries());
+  }, [agents]);
 
   const providerLatency = (name: string) => {
-    if (name === "AIML API") return `${aimlLatency}ms`;
-    if (name === "Featherless") return `${featherlessLatency}ms`;
-    if (name === "Band") return "24ms";
-    return "89ms";
+    if (name === "AIML_API") return `${aimlLatency}ms`;
+    if (name === "FEATHERLESS") return `${featherlessLatency}ms`;
+    if (name === "OPENAI") return "210ms";
+    return "1ms";
   };
 
-  const recruitedNames = new Set(
-    AGENTS.filter((a) => recruitedAgentIds.includes(a.id)).map((a) =>
-      a.name.endsWith(" Agent") ? a.name : `${a.name} Agent`
-    )
-  );
-  const onlineAgents = new Set([...ONLINE_AGENTS, ...recruitedNames]);
+  const providerUsage = MODEL_PROVIDERS.map((provider) => ({
+    name: provider.name,
+    count: agents.filter((agent) => agent.provider === provider.name.replace(" ", "_")).length,
+  }));
 
   return (
-    <AppShell title="Agent Architecture" subtitle={`SYS://band.multi-agent.topology · ${activeAgentCount} agents online`} fullWidth>
+    <AppShell title="Agent Architecture" subtitle={`SYS://band.multi-agent.topology · ${agents.length} agents discovered`} fullWidth>
       <div className="flex h-[calc(100vh-5.5rem)] flex-col gap-3 p-3 font-mono">
-        {/* Provider strip */}
         <div className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
-          {MODEL_PROVIDERS.map((p) => {
-            const stats = PROVIDER_STATS[p.name] ?? { load: 0 };
+          {providers.map((provider) => {
+            const usage = providerUsage.find((item) => item.name === provider.name)?.count ?? 0;
+            const load = Math.min(95, 25 + usage * 12);
             return (
-              <CyberPanel key={p.name} compact glow="cyan" hover={false}>
+              <CyberPanel key={provider.name} compact glow="cyan" hover={false}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-200">{p.name}</span>
-                  <CyberBadge label="ONLINE" variant="emerald" />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-slate-200">{provider.name}</span>
+                  <CyberBadge label={provider.configured ? "ONLINE" : "MISSING KEY"} variant={provider.configured ? "emerald" : "red"} />
                 </div>
                 <div className="mt-2 flex justify-between text-[10px] text-slate-400">
-                  <span>lat {providerLatency(p.name)}</span>
-                  <span className="text-cyan-300">load {stats.load}%</span>
+                  <span>lat {providerLatency(provider.name)}</span>
+                  <span className="text-cyan-300">{usage} agents</span>
                 </div>
                 <div className="mt-1.5 h-1 overflow-hidden rounded-sm bg-white/5">
-                  <div className="h-full rounded-sm bg-cyan-500/50" style={{ width: `${stats.load}%` }} />
+                  <div className="h-full rounded-sm bg-cyan-500/50" style={{ width: `${load}%` }} />
                 </div>
               </CyberPanel>
             );
           })}
         </div>
 
-        {/* Main */}
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-5">
           <div className="relative h-full min-h-0 overflow-hidden rounded-lg border border-cyan-500/25 glass-premium lg:col-span-2">
             <div className="absolute inset-x-0 top-0 z-10 border-b border-cyan-500/10 bg-[rgba(5,12,28,0.8)] px-3 py-2 backdrop-blur-sm">
-              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-400">
-                Agent Network Map
-              </h3>
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-400">Agent Network Map</h3>
             </div>
             <AgentNetworkCanvas className="absolute inset-0 h-full w-full">
               <AgentNetworkScene />
             </AgentNetworkCanvas>
-            <div className="pointer-events-none absolute inset-0 rounded-lg border border-cyan-500/10" />
             <div className="absolute bottom-2 left-2 z-10 flex flex-col gap-1">
               <div className="flex items-center gap-2 border border-cyan-500/20 bg-[#020617]/90 px-2 py-1 text-[10px] text-cyan-300">
                 <Radio className="h-3 w-3 text-emerald-400" />
-                <span className="font-medium">17_AGENTS · BAND_ROOM_ACTIVE</span>
+                <span className="font-medium">{agents.length}_AGENTS · TOPOLOGY_ONLINE</span>
               </div>
-              <span className="rounded border border-cyan-500/15 bg-[#020617]/80 px-2 py-0.5 text-[10px] text-slate-400">
-                Scroll to zoom · Drag to rotate
-              </span>
+              <span className="rounded border border-cyan-500/15 bg-[#020617]/80 px-2 py-0.5 text-[10px] text-slate-400">Scroll to zoom · Drag to rotate</span>
             </div>
           </div>
 
           <div className="min-h-0 space-y-1.5 overflow-y-auto lg:col-span-3">
-            {AGENT_TIERS.map((tier, i) => {
-              const colors = TIER_COLORS[i];
+            {groupedByTier.map(([tier, tierAgents]) => {
+              const colors = TIER_COLORS[tier];
               return (
-                <CyberPanel key={tier.tier} title={tier.tier} glow={colors.glow} compact hover={false}>
+                <CyberPanel key={tier} title={tier} glow={colors.glow} compact hover={false}>
                   <div className="mb-2 flex items-center gap-2 border-b border-white/5 pb-1.5 text-[9px] text-slate-600">
                     <Terminal className="h-3 w-3" />
-                    <span>TIER_{colors.label} · {tier.agents.length} units</span>
+                    <span>{tierAgents.length} units</span>
                   </div>
                   <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">
-                    {tier.agents.map((agent) => {
-                      const online = onlineAgents.has(agent);
-                      const model = AGENT_MODELS[agent] ?? "LOC";
+                    {tierAgents.map((agent) => {
+                      const online = agent.status === "active" || agent.status === "waiting";
                       return (
-                        <div
-                          key={agent}
-                          className={`flex items-center gap-2 border ${colors.border} bg-black/20 px-2 py-1.5 ${online ? "" : "opacity-50"}`}
-                        >
+                        <div key={agent.id} className={`flex items-center gap-2 border ${colors.border} bg-black/20 px-2 py-1.5 ${online ? "" : "opacity-50"}`}>
                           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${online ? "bg-emerald-400" : "bg-slate-600"}`} />
                           <Bot className={`h-3 w-3 shrink-0 ${colors.text}`} />
-                          <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-slate-200">{agent.replace(" Agent", "")}</span>
-                          <CyberBadge label={model} variant={modelVariant(model)} />
+                          <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-slate-200">{agent.name}</span>
+                          <CyberBadge label={agent.provider} variant={modelVariant(agent.provider)} />
                         </div>
                       );
                     })}
@@ -174,6 +172,11 @@ export function AgentArchitectureView() {
           </div>
         </div>
       </div>
+      {error && (
+        <div className="pointer-events-none fixed bottom-12 right-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 font-mono text-[11px] text-red-200">
+          {error}
+        </div>
+      )}
     </AppShell>
   );
 }

@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
-  await request.json().catch(() => null);
-
-  return NextResponse.json({
-    ok: true,
-    message: "Login code is ready.",
-  });
+export async function POST() {
+  return NextResponse.json(
+    { ok: false, error: "One-time login codes are disabled. Use email and password.", route: "/api/auth/request-code" },
+    { status: 410 }
+  );
 }

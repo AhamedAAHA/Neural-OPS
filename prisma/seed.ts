@@ -2,13 +2,34 @@
  * Neural OPS — Database Seed
  * Run: npm run db:seed
  */
+import { config } from "dotenv";
+import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { getBandAdapter } from "../src/lib/band";
+
+config({ path: path.resolve(process.cwd(), ".env.local") });
+config({ path: path.resolve(process.cwd(), ".env") });
+
+if (process.env.SEED_USE_REAL_BAND !== "true") {
+  process.env.USE_MOCK_BAND = "true";
+}
+
+function ensureDatabaseSchema() {
+  const url = process.env.DATABASE_URL;
+  if (!url || url.includes("schema=")) return;
+  const separator = url.includes("?") ? "&" : "?";
+  process.env.DATABASE_URL = `${url}${separator}schema=neural_ops`;
+}
+
+ensureDatabaseSchema();
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Seeding Neural OPS database...");
+  if (process.env.USE_MOCK_BAND === "true") {
+    console.log("ℹ️  Using mock Band adapter for seed (set SEED_USE_REAL_BAND=true to use live Band API).");
+  }
 
   await prisma.modelInvocation.deleteMany();
   await prisma.voiceCommand.deleteMany();
@@ -25,18 +46,25 @@ async function main() {
   await prisma.investigationRoom.deleteMany();
   await prisma.incident.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.organization.deleteMany();
 
-  const admin = await prisma.user.create({
-    data: { name: "Admin User", email: "admin@neural-ops.io", role: "admin" },
+  const organization = await prisma.organization.create({
+    data: { name: "Acme Financial Group", slug: "acme-financial-group", industry: "Finance", country: "US" },
+  });
+
+  const _admin = await prisma.user.create({
+    data: { name: "Admin User", email: "admin@neural-ops.io", role: "admin", organizationId: organization.id },
   });
   const analyst = await prisma.user.create({
-    data: { name: "Sarah Chen", email: "analyst@neural-ops.io", role: "analyst" },
+    data: { name: "Sarah Chen", email: "analyst@neural-ops.io", role: "analyst", organizationId: organization.id },
   });
-  const executive = await prisma.user.create({
-    data: { name: "James Morrison", email: "executive@neural-ops.io", role: "executive" },
+  const _executive = await prisma.user.create({
+    data: { name: "James Morrison", email: "executive@neural-ops.io", role: "executive", organizationId: organization.id },
   });
-  const auditor = await prisma.user.create({
-    data: { name: "Audit Bot", email: "auditor@neural-ops.io", role: "auditor" },
+  void _admin;
+  void _executive;
+  await prisma.user.create({
+    data: { name: "Risk Officer", email: "risk.officer@neural-ops.io", role: "risk_officer", organizationId: organization.id },
   });
 
   const band = getBandAdapter();
@@ -75,7 +103,7 @@ async function main() {
   for (const inc of incidents) {
     const bandRoomId = await band.createRoom(`Investigation: ${inc.title}`, { type: inc.type });
     const incident = await prisma.incident.create({
-      data: { ...inc, createdBy: analyst.id },
+      data: { ...inc, createdBy: analyst.id, organizationId: organization.id },
     });
 
     const room = await prisma.investigationRoom.create({
@@ -279,9 +307,9 @@ async function main() {
     // Audit logs
     await prisma.auditLog.createMany({
       data: [
-        { incidentId: incident.id, actorType: "user", actorId: analyst.id, action: "incident_created", detailsJson: { title: inc.title } },
-        { incidentId: incident.id, actorType: "agent", actorId: commander.id, action: "band_message_sent", detailsJson: { type: "AGENT_RECRUITMENT" } },
-        { incidentId: incident.id, actorType: "agent", actorId: audit.id, action: "audit_complete", detailsJson: { records: 47 } },
+        { organizationId: organization.id, incidentId: incident.id, actorType: "user", actorId: analyst.id, action: "incident_created", detailsJson: { title: inc.title } },
+        { organizationId: organization.id, incidentId: incident.id, actorType: "agent", actorId: commander.id, action: "band_message_sent", detailsJson: { type: "AGENT_RECRUITMENT" } },
+        { organizationId: organization.id, incidentId: incident.id, actorType: "agent", actorId: audit.id, action: "audit_complete", detailsJson: { records: 47 } },
       ],
     });
 
@@ -289,9 +317,9 @@ async function main() {
   }
 
   console.log("\n✅ Seed complete!");
-  console.log(`   Users: admin, analyst, executive, auditor`);
+  console.log(`   Users: admin, analyst, executive, risk_officer`);
   console.log(`   Incidents: ${incidents.length}`);
-  console.log(`   Dev auth: X-User-Role header (admin|analyst|executive|auditor)`);
+  console.log(`   Login: admin@neural-ops.io (first password you enter becomes your credential)`);
 }
 
 main()

@@ -24,8 +24,8 @@ export async function respondToApproval(
   decision: "approved" | "rejected" | "escalated",
   decisionNote?: string
 ) {
-  if (user.role !== "executive" && user.role !== "admin") {
-    throw new ApiForbiddenError("Only executives and admins can respond to approvals");
+  if (!["executive", "admin", "risk_officer", "legal_counsel", "compliance_manager"].includes(user.role)) {
+    throw new ApiForbiddenError("Only authorized decision roles can respond to approvals");
   }
 
   const approval = await prisma.humanApproval.update({

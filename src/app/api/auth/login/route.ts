@@ -1,29 +1,65 @@
 import { NextResponse } from "next/server";
-import { writeDemoSession } from "@/lib/auth/demo-auth";
+import { authenticateWithEmailPassword } from "@/lib/auth/login-service";
+import { cookies } from "next/headers";
+import { ORGANIZATION_COOKIE_NAME } from "@/lib/auth/constants";
+import { z } from "zod";
+import { checkRateLimit } from "@/lib/api/rate-limit";
+import { recordApiMetric, recordMonitoringEvent } from "@/lib/observability/store";
+import { withSpan } from "@/lib/observability/tracing";
 
-const DEMO_EMAIL = process.env.DEMO_LOGIN_EMAIL ?? "admin@neural-ops.ai";
-const DEMO_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? "Neural@2026";
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as { email?: string; password?: string } | null;
-  const email = body?.email?.trim().toLowerCase() ?? "";
-  const password = body?.password ?? "";
-
-  if (!email || !password) {
-    return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+  const started = Date.now();
+  const route = "/api/auth/login";
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown";
+  if (checkRateLimit(`auth:login:${ip}`, 10)) {
+    void recordApiMetric({ route, method: "POST", statusCode: 429, durationMs: Date.now() - started, errorMessage: "rate_limited" }).catch(() => {});
+    return NextResponse.json({ ok: false, error: "Too many login attempts. Try again shortly.", route }, { status: 429 });
   }
 
-  if (email !== DEMO_EMAIL.toLowerCase() || password !== DEMO_PASSWORD) {
-    return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const parsed = loginSchema.safeParse(body);
+  if (!parsed.success) {
+    void recordApiMetric({ route, method: "POST", statusCode: 400, durationMs: Date.now() - started, errorMessage: "invalid_payload" }).catch(() => {});
+    return NextResponse.json({ ok: false, error: "Invalid login payload.", route }, { status: 400 });
   }
 
-  await writeDemoSession({
-    email,
-    name: "Incident Commander",
-    role: "admin",
-    method: "password",
-    createdAt: new Date().toISOString(),
-  });
+  try {
+    const result = await authenticateWithEmailPassword(parsed.data.email, parsed.data.password);
+    const cookieStore = await cookies();
+    cookieStore.set(ORGANIZATION_COOKIE_NAME, result.organization.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
 
-  return NextResponse.json({ ok: true });
+    const response = await withSpan("auth.login", { "http.route": route }, async () =>
+      NextResponse.json({ ok: true, organization: result.organization })
+    );
+    void recordApiMetric({
+      organizationId: result.organization.id,
+      route,
+      method: "POST",
+      statusCode: response.status,
+      durationMs: Date.now() - started,
+    }).catch(() => {});
+    void recordMonitoringEvent({
+      organizationId: result.organization.id,
+      source: "API",
+      operation: "auth.login",
+      durationMs: Date.now() - started,
+      details: { method: "password" },
+    }).catch(() => {});
+    return response;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Login failed.";
+    void recordApiMetric({ route, method: "POST", statusCode: 401, durationMs: Date.now() - started, errorMessage: message }).catch(() => {});
+    return NextResponse.json({ ok: false, error: message, route }, { status: 401 });
+  }
 }

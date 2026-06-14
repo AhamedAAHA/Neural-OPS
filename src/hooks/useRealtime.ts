@@ -17,7 +17,11 @@ export function useRealtime(incidentId?: string) {
         const score = (payload.payload as { payload?: { assessment?: { riskScore?: number } } })?.payload?.assessment?.riskScore;
         if (score) setRiskScore(score);
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.warn("[Realtime] Channel error, realtime updates disabled for this session.");
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

@@ -6,13 +6,17 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["neural_ops"]
 }
 
 enum UserRole {
   admin
   analyst
+  compliance_manager
+  legal_counsel
+  risk_officer
   executive
-  auditor
+  @@schema("neural_ops")
 }
 
 enum IncidentStatus {
@@ -23,6 +27,7 @@ enum IncidentStatus {
   escalated
   resolved
   closed
+  @@schema("neural_ops")
 }
 
 enum Severity {
@@ -30,12 +35,14 @@ enum Severity {
   high
   medium
   low
+  @@schema("neural_ops")
 }
 
 enum RoomStatus {
   active
   paused
   closed
+  @@schema("neural_ops")
 }
 
 enum AgentStatus {
@@ -45,6 +52,7 @@ enum AgentStatus {
   waiting
   completed
   offline
+  @@schema("neural_ops")
 }
 
 enum AgentTier {
@@ -53,6 +61,7 @@ enum AgentTier {
   Intelligence
   Governance
   Response
+  @@schema("neural_ops")
 }
 
 enum MessageType {
@@ -65,6 +74,7 @@ enum MessageType {
   AGENT_RECRUITMENT
   RISK_UPDATE
   VOICE_COMMAND
+  @@schema("neural_ops")
 }
 
 enum HandoffStatus {
@@ -72,6 +82,7 @@ enum HandoffStatus {
   in_progress
   completed
   cancelled
+  @@schema("neural_ops")
 }
 
 enum ApprovalStatus {
@@ -79,6 +90,7 @@ enum ApprovalStatus {
   approved
   rejected
   escalated
+  @@schema("neural_ops")
 }
 
 enum ModelProvider {
@@ -86,12 +98,93 @@ enum ModelProvider {
   FEATHERLESS
   OPENAI
   LOCAL
+  @@schema("neural_ops")
 }
 
 enum ActorType {
   user
   agent
   system
+  @@schema("neural_ops")
+}
+
+enum ObservabilitySource {
+  API
+  DATABASE
+  AGENT
+  BRIGHT_DATA
+  BAND
+  SPEECHMATICS
+  REALTIME
+  SYSTEM
+  @@schema("neural_ops")
+}
+
+enum ObservabilityLevel {
+  info
+  warning
+  error
+  @@schema("neural_ops")
+}
+
+enum ServiceHealthStatus {
+  healthy
+  degraded
+  down
+  @@schema("neural_ops")
+}
+
+enum WorkflowTriggerType {
+  NEW_INCIDENT
+  VENDOR_RISK_THRESHOLD
+  COMPLIANCE_VIOLATION
+  NEW_DOCUMENT_UPLOAD
+  @@schema("neural_ops")
+}
+
+enum WorkflowExecutionStatus {
+  running
+  completed
+  failed
+  @@schema("neural_ops")
+}
+
+enum DocumentType {
+  pdf
+  docx
+  txt
+  md
+  html
+  json
+  other
+  @@schema("neural_ops")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  country     String?
+  industry    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users               User[]
+  incidents           Incident[]
+  documents           Document[]
+  vendors             Vendor[]
+  approvals           Approval[]
+  bandRooms           BandRoom[]
+  vendorIntelligence  VendorIntelligence[]
+  auditLogs           AuditLog[]
+  apiRequestMetrics   ApiRequestMetric[]
+  monitoringEvents    MonitoringEvent[]
+  serviceHealthChecks ServiceHealthCheck[]
+  userActivities      UserActivity[]
+  workflows           WorkflowDefinition[]
+  workflowExecutions  WorkflowExecution[]
+  boardReports        BoardIntelligenceReport[]
+  @@schema("neural_ops")
 }
 
 model User {
@@ -100,16 +193,24 @@ model User {
   email     String   @unique
   role      UserRole @default(analyst)
   authId    String?  @unique
+  organizationId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   incidentsCreated Incident[]       @relation("IncidentCreator")
   approvalsGiven   HumanApproval[]  @relation("ApprovalDecider")
   voiceCommands    VoiceCommand[]
+  uploadedDocuments Document[]
+  approvalsRequested Approval[]     @relation("ApprovalRequesterV2")
+  approvalsDecided   Approval[]     @relation("ApprovalDeciderV2")
+  workflowsCreated   WorkflowDefinition[]
+  @@schema("neural_ops")
 }
 
 model Incident {
   id          String         @id @default(cuid())
+  organizationId String?
   title       String
   description String         @db.Text
   type        String
@@ -119,6 +220,7 @@ model Incident {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  organization       Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   creator            User                @relation("IncidentCreator", fields: [createdBy], references: [id])
   rooms              InvestigationRoom[]
   evidence           Evidence[]
@@ -130,6 +232,15 @@ model Incident {
   auditLogs          AuditLog[]
   voiceCommands      VoiceCommand[]
   modelInvocations   ModelInvocation[]
+  documents          Document[]
+  bandRooms          BandRoom[]
+  approvalRecords    Approval[]
+  vendorIntelligence VendorIntelligence[]
+  apiRequestMetrics  ApiRequestMetric[]
+  monitoringEvents   MonitoringEvent[]
+  workflowExecutions WorkflowExecution[]
+  boardReports       BoardIntelligenceReport[]
+  @@schema("neural_ops")
 }
 
 model InvestigationRoom {
@@ -145,6 +256,7 @@ model InvestigationRoom {
   agents       Agent[]
   messages     AgentMessage[]
   handoffs     TaskHandoff[]
+  @@schema("neural_ops")
 }
 
 model Agent {
@@ -172,6 +284,7 @@ model Agent {
   approvalsRequested    HumanApproval[]
   voiceCommandsRouted   VoiceCommand[]
   modelInvocations      ModelInvocation[]
+  @@schema("neural_ops")
 }
 
 model AgentMessage {
@@ -189,6 +302,7 @@ model AgentMessage {
   room      InvestigationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   agent     Agent             @relation("MessageSender", fields: [agentId], references: [id])
   recipient Agent?            @relation("MessageRecipient", fields: [recipientAgentId], references: [id])
+  @@schema("neural_ops")
 }
 
 model Evidence {
@@ -206,6 +320,7 @@ model Evidence {
 
   incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   sourceAgent Agent    @relation(fields: [sourceAgentId], references: [id])
+  @@schema("neural_ops")
 }
 
 model TaskHandoff {
@@ -223,6 +338,7 @@ model TaskHandoff {
   room      InvestigationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   fromAgent Agent             @relation("HandoffFrom", fields: [fromAgentId], references: [id])
   toAgent   Agent             @relation("HandoffTo", fields: [toAgentId], references: [id])
+  @@schema("neural_ops")
 }
 
 model RiskAssessment {
@@ -240,6 +356,7 @@ model RiskAssessment {
 
   incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   generatedByAgent Agent    @relation(fields: [generatedByAgentId], references: [id])
+  @@schema("neural_ops")
 }
 
 model ComplianceFinding {
@@ -254,6 +371,7 @@ model ComplianceFinding {
 
   incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   generatedByAgent Agent    @relation(fields: [generatedByAgentId], references: [id])
+  @@schema("neural_ops")
 }
 
 model LegalFinding {
@@ -268,6 +386,7 @@ model LegalFinding {
 
   incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   generatedByAgent Agent    @relation(fields: [generatedByAgentId], references: [id])
+  @@schema("neural_ops")
 }
 
 model HumanApproval {
@@ -286,6 +405,7 @@ model HumanApproval {
   incident         Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   requestedByAgent Agent    @relation(fields: [requestedByAgentId], references: [id])
   approver         User?    @relation("ApprovalDecider", fields: [approvedBy], references: [id])
+  @@schema("neural_ops")
 }
 
 model ExecutiveReport {
@@ -303,10 +423,12 @@ model ExecutiveReport {
   createdAt             DateTime @default(now())
 
   incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  @@schema("neural_ops")
 }
 
 model AuditLog {
   id          String    @id @default(cuid())
+  organizationId String?
   incidentId  String?
   actorType   ActorType
   actorId     String
@@ -314,7 +436,9 @@ model AuditLog {
   detailsJson Json      @default("{}")
   createdAt   DateTime  @default(now())
 
-  incident Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  incident     Incident?     @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  @@schema("neural_ops")
 }
 
 model VoiceCommand {
@@ -331,6 +455,7 @@ model VoiceCommand {
   user        User      @relation(fields: [userId], references: [id])
   incident    Incident? @relation(fields: [incidentId], references: [id])
   routedAgent Agent?    @relation(fields: [routedAgentId], references: [id])
+  @@schema("neural_ops")
 }
 
 model ModelInvocation {
@@ -347,4 +472,273 @@ model ModelInvocation {
 
   agent    Agent?    @relation(fields: [agentId], references: [id])
   incident Incident? @relation(fields: [incidentId], references: [id])
+  @@schema("neural_ops")
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  organizationId String?
+  incidentId     String?
+  uploadedBy     String
+  name           String
+  mimeType       String
+  type           DocumentType @default(other)
+  sizeBytes      Int
+  storagePath    String
+  publicUrl      String?
+  textContent    String?      @db.Text
+  metadataJson   Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  incident     Incident?      @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  uploader     User           @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  chunks       DocumentChunk[]
+
+  @@index([incidentId])
+  @@index([organizationId])
+  @@schema("neural_ops")
+}
+
+model DocumentChunk {
+  id            String   @id @default(cuid())
+  documentId    String
+  chunkIndex    Int
+  content       String   @db.Text
+  tokenCount    Int      @default(0)
+  embeddingJson Json     @default("[]")
+  createdAt     DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@schema("neural_ops")
+}
+
+model BandRoom {
+  id             String    @id @default(cuid())
+  organizationId String?
+  incidentId     String
+  roomExternalId String?   @unique
+  name           String
+  status         String    @default("active")
+  connectedAgents Int      @default(0)
+  messageCount    Int      @default(0)
+  lastActivityAt  DateTime?
+  metadataJson   Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  incident     Incident      @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@schema("neural_ops")
+}
+
+model Vendor {
+  id             String   @id @default(cuid())
+  organizationId String?
+  name           String
+  country        String?
+  industry       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization?       @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  intelligence  VendorIntelligence[]
+
+  @@unique([organizationId, name])
+  @@index([name])
+  @@schema("neural_ops")
+}
+
+model VendorIntelligence {
+  id             String   @id @default(cuid())
+  organizationId String?
+  vendorId       String
+  incidentId     String?
+  source         String
+  findingsJson   Json     @default("{}")
+  riskScore      Int
+  summary        String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  vendor       Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  incident     Incident?     @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([vendorId])
+  @@index([incidentId])
+  @@schema("neural_ops")
+}
+
+model Approval {
+  id             String         @id @default(cuid())
+  organizationId String?
+  incidentId     String
+  chainId        String?
+  chainOrder     Int?
+  approverRole   String?
+  approverName   String?
+  requestedById  String?
+  decidedById    String?
+  title          String
+  description    String         @db.Text
+  riskLevel      Severity
+  status         ApprovalStatus @default(pending)
+  decisionNote   String?        @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  incident     Incident      @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  requestedBy  User?         @relation("ApprovalRequesterV2", fields: [requestedById], references: [id], onDelete: SetNull)
+  decidedBy    User?         @relation("ApprovalDeciderV2", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([incidentId])
+  @@index([organizationId])
+  @@index([chainId])
+  @@schema("neural_ops")
+}
+
+model ApiRequestMetric {
+  id             String   @id @default(cuid())
+  organizationId String?
+  incidentId     String?
+  userId         String?
+  route          String
+  method         String
+  statusCode     Int
+  durationMs     Int
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  incident     Incident?     @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([route, createdAt])
+  @@schema("neural_ops")
+}
+
+model MonitoringEvent {
+  id             String              @id @default(cuid())
+  organizationId String?
+  incidentId     String?
+  source         ObservabilitySource
+  level          ObservabilityLevel  @default(info)
+  operation      String
+  status         String              @default("ok")
+  durationMs     Int?
+  message        String?
+  detailsJson    Json                @default("{}")
+  createdAt      DateTime            @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  incident     Incident?     @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([source, createdAt])
+  @@schema("neural_ops")
+}
+
+model ServiceHealthCheck {
+  id                String              @id @default(cuid())
+  organizationId    String?
+  service           String
+  status            ServiceHealthStatus @default(healthy)
+  responseTimeMs    Int?
+  errorRatePct      Float?
+  activeConnections Int?
+  activeUsers       Int?
+  detailsJson       Json                @default("{}")
+  createdAt         DateTime            @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, service, createdAt])
+  @@schema("neural_ops")
+}
+
+model UserActivity {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String
+  path           String?
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, lastSeenAt])
+  @@schema("neural_ops")
+}
+
+model WorkflowDefinition {
+  id                String              @id @default(cuid())
+  organizationId    String
+  createdById       String?
+  name              String
+  description       String?             @db.Text
+  triggerType       WorkflowTriggerType
+  triggerConfigJson Json                @default("{}")
+  actionsJson       Json                @default("[]")
+  graphJson         Json                @default("{}")
+  enabled           Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  executions   WorkflowExecution[]
+
+  @@index([organizationId, enabled, triggerType])
+  @@schema("neural_ops")
+}
+
+model WorkflowExecution {
+  id                String                  @id @default(cuid())
+  workflowId        String
+  organizationId    String
+  incidentId        String?
+  status            WorkflowExecutionStatus @default(running)
+  triggerPayloadJson Json                   @default("{}")
+  actionResultsJson  Json                   @default("[]")
+  errorMessage      String?                 @db.Text
+  startedAt         DateTime                @default(now())
+  completedAt       DateTime?
+
+  workflow     WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incident     Incident?          @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, startedAt])
+  @@index([workflowId, startedAt])
+  @@schema("neural_ops")
+}
+
+model BoardIntelligenceReport {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  incidentId          String?
+  generatedBy         String   @default("enterprise_forecast_agent")
+  summary             String   @db.Text
+  outlook30Json       Json     @default("{}")
+  outlook90Json       Json     @default("{}")
+  outlook180Json      Json     @default("{}")
+  vendorTrendJson     Json     @default("{}")
+  recommendationsJson Json     @default("[]")
+  generatedAt         DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incident     Incident?    @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, generatedAt])
+  @@index([incidentId, generatedAt])
+  @@schema("neural_ops")
 }

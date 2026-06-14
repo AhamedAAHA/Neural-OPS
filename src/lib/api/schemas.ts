@@ -58,6 +58,7 @@ export const riskSimulateSchema = z.object({
   incidentId: z.string(),
   scenario: z.string(),
   scenarioDescription: z.string().optional(),
+  timeframe: z.enum(["24h", "7d"]).optional(),
 });
 
 export const complianceReviewSchema = z.object({
@@ -106,4 +107,87 @@ export const broadcastSchema = z.object({
   summary: z.string(),
   payload: z.record(z.string(), z.unknown()).default({}),
   fromAgentId: z.string(),
+});
+
+export const documentUploadMetaSchema = z.object({
+  incidentId: z.string().optional(),
+  organizationId: z.string().optional(),
+});
+
+export const documentListSchema = z.object({
+  incidentId: z.string().optional(),
+  organizationId: z.string().optional(),
+});
+
+export const vendorInvestigateSchema = z.object({
+  vendorName: z.string().min(2),
+  country: z.string().optional(),
+  industry: z.string().optional(),
+  incidentId: z.string().optional(),
+  organizationId: z.string().optional(),
+});
+
+export const approvalCreateSchemaV2 = z.object({
+  incidentId: z.string(),
+  organizationId: z.string().optional(),
+  title: z.string().min(3).max(200),
+  description: z.string().min(10),
+  riskLevel: z.enum(["critical", "high", "medium", "low"]),
+});
+
+export const memoryQuerySchema = z.object({
+  vendor: z.string().min(1).optional(),
+  incidentId: z.string().optional(),
+  organizationId: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+export const decisionQuerySchema = z.object({
+  incidentId: z.string().min(1),
+});
+
+export const approvalChainCreateSchema = z.object({
+  incidentId: z.string().min(1),
+});
+
+export const approvalsListSchema = z.object({
+  incidentId: z.string().optional(),
+  organizationId: z.string().optional(),
+});
+
+export const workflowActionSchema = z.enum([
+  "CREATE_INVESTIGATION",
+  "CREATE_BAND_ROOM",
+  "RECRUIT_AGENTS",
+  "NOTIFY_LEGAL",
+  "NOTIFY_COMPLIANCE",
+  "GENERATE_REPORT",
+]);
+
+export const workflowCreateSchema = z.object({
+  name: z.string().min(3).max(140),
+  description: z.string().max(500).optional(),
+  triggerType: z.enum([
+    "NEW_INCIDENT",
+    "VENDOR_RISK_THRESHOLD",
+    "COMPLIANCE_VIOLATION",
+    "NEW_DOCUMENT_UPLOAD",
+  ]),
+  triggerConfig: z.record(z.string(), z.unknown()).optional(),
+  actions: z.array(workflowActionSchema).min(1),
+  graph: z.record(z.string(), z.unknown()).optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const workflowUpdateSchema = workflowCreateSchema.partial().extend({
+  enabled: z.boolean().optional(),
+});
+
+export const executiveIntelligenceQuerySchema = z.object({
+  incidentId: z.string().optional(),
+  includeForecast: z.coerce.boolean().optional().default(true),
+});
+
+export const executiveIntelligenceGenerateSchema = z.object({
+  incidentId: z.string().optional(),
 });

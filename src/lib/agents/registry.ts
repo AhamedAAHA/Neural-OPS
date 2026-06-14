@@ -1,6 +1,7 @@
 import type { Agent } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { BaseAgent, type AgentContext } from "./base-agent";
+import { recordMonitoringEvent } from "@/lib/observability/store";
 import {
   AGENT_DEFINITIONS,
   SecurityMonitoringAgent,
@@ -85,5 +86,39 @@ export async function createDbAgent(role: string, roomId: string): Promise<Agent
 export async function wrapAgent(dbAgent: Agent, incidentId: string, roomId: string, bandRoomId: string): Promise<BaseAgent> {
   const def = AGENT_DEFINITIONS.find((d) => d.role === dbAgent.role || d.name === dbAgent.name);
   const className = def?.className ?? "IncidentCommanderAgent";
-  return instantiateAgent(className, { incidentId, roomId, bandRoomId, dbAgent });
+  const instance = instantiateAgent(className, { incidentId, roomId, bandRoomId, dbAgent });
+  const originalAnalyze = instance.analyze.bind(instance);
+  instance.analyze = async (input: Record<string, unknown>) => {
+    const started = Date.now();
+    try {
+      const result = await originalAnalyze(input);
+      void recordMonitoringEvent({
+        incidentId,
+        source: "AGENT",
+        operation: `${className}.analyze`,
+        durationMs: Date.now() - started,
+        details: {
+          roomId,
+          agentId: dbAgent.id,
+        },
+      }).catch(() => {});
+      return result;
+    } catch (error) {
+      void recordMonitoringEvent({
+        incidentId,
+        source: "AGENT",
+        level: "error",
+        operation: `${className}.analyze`,
+        status: "error",
+        durationMs: Date.now() - started,
+        message: error instanceof Error ? error.message : "Agent analyze failed",
+        details: {
+          roomId,
+          agentId: dbAgent.id,
+        },
+      }).catch(() => {});
+      throw error;
+    }
+  };
+  return instance;
 }

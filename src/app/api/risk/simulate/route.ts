@@ -4,6 +4,6 @@ import { simulateRisk } from "@/lib/services/risk-service";
 
 export const POST = withAuth("risk:analyze", async (request) => {
   const body = await parseBody(request, riskSimulateSchema);
-  const simulation = await simulateRisk(body.incidentId, body.scenario, body.scenarioDescription);
+  const simulation = await simulateRisk(body.incidentId, body.scenario, body.scenarioDescription, body.timeframe);
   return json({ simulation });
 });
