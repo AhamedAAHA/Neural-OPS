@@ -4,8 +4,8 @@
  */
 import { config } from "dotenv";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
 import { getBandAdapter } from "../src/lib/band";
+import { createPrismaClient } from "../src/lib/prisma-client-factory";
 
 config({ path: path.resolve(process.cwd(), ".env.local") });
 config({ path: path.resolve(process.cwd(), ".env") });
@@ -23,7 +23,7 @@ function ensureDatabaseSchema() {
 
 ensureDatabaseSchema();
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function main() {
   console.log("🌱 Seeding Neural OPS database...");

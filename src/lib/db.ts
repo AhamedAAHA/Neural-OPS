@@ -1,30 +1,11 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { getTenantContext } from "@/lib/auth/tenant-context";
 import { recordMonitoringEvent } from "@/lib/observability/store";
+import { createPrismaClient, resolveDatabaseUrl } from "@/lib/prisma-client-factory";
 
 function ensureDatabaseSchema() {
-  // Prefer direct connection in local dev to avoid Supabase pooler contention under concurrent Next.js requests.
-  const baseUrl =
-    process.env.NODE_ENV === "development" && process.env.DIRECT_URL
-      ? process.env.DIRECT_URL
-      : (process.env.DATABASE_URL ?? process.env.DIRECT_URL);
-  if (!baseUrl) return;
-
-  try {
-    const parsed = new URL(baseUrl);
-    if (!parsed.searchParams.get("schema")) {
-      parsed.searchParams.set("schema", "neural_ops");
-    }
-    if (parsed.searchParams.get("pgbouncer") === "true" && !parsed.searchParams.get("connection_limit")) {
-      parsed.searchParams.set("connection_limit", process.env.NODE_ENV === "development" ? "5" : "1");
-    }
-    if (!parsed.searchParams.get("pool_timeout")) {
-      parsed.searchParams.set("pool_timeout", process.env.NODE_ENV === "development" ? "60" : "30");
-    }
-    process.env.DATABASE_URL = parsed.toString();
-  } catch {
-    process.env.DATABASE_URL = baseUrl;
-  }
+  const resolved = resolveDatabaseUrl();
+  if (resolved) process.env.DATABASE_URL = resolved;
 }
 
 ensureDatabaseSchema();
@@ -40,9 +21,7 @@ const prismaLog: Array<Prisma.LogLevel | Prisma.LogDefinition> = [
 
 const basePrisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    log: prismaLog,
-  });
+  createPrismaClient(prismaLog);
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = basePrisma;
 

@@ -1,23 +1,9 @@
 import { PrismaClient, type ObservabilityLevel, type ObservabilitySource, type ServiceHealthStatus } from "@prisma/client";
+import { createPrismaClient, resolveDatabaseUrl } from "@/lib/prisma-client-factory";
 
 function ensureDatabaseSchemaForObservability() {
-  const baseUrl = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
-  if (!baseUrl) return;
-  try {
-    const parsed = new URL(baseUrl);
-    if (!parsed.searchParams.get("schema")) {
-      parsed.searchParams.set("schema", "neural_ops");
-    }
-    if (parsed.searchParams.get("pgbouncer") === "true" && !parsed.searchParams.get("connection_limit")) {
-      parsed.searchParams.set("connection_limit", "1");
-    }
-    if (!parsed.searchParams.get("pool_timeout")) {
-      parsed.searchParams.set("pool_timeout", "30");
-    }
-    process.env.DATABASE_URL = parsed.toString();
-  } catch {
-    process.env.DATABASE_URL = baseUrl;
-  }
+  const resolved = resolveDatabaseUrl();
+  if (resolved) process.env.DATABASE_URL = resolved;
 }
 
 ensureDatabaseSchemaForObservability();
@@ -25,7 +11,7 @@ ensureDatabaseSchemaForObservability();
 const globalForObservability = globalThis as unknown as { observabilityPrisma?: PrismaClient };
 const observabilityPrisma =
   globalForObservability.observabilityPrisma ??
-  new PrismaClient();
+  createPrismaClient();
 if (process.env.NODE_ENV !== "production") {
   globalForObservability.observabilityPrisma = observabilityPrisma;
 }
