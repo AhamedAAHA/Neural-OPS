@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { Globe, Radio, AlertTriangle, RefreshCw, Activity } from "lucide-react";
@@ -53,7 +53,7 @@ export function IntelligenceNetworkView() {
   const [toast, setToast] = useState<{ kind: "success" | "error" | "info"; message: string } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  const loadSignals = async () => {
+  const loadSignals = useCallback(async () => {
     setLoadingSignals(true);
     setError(null);
     try {
@@ -66,7 +66,7 @@ export function IntelligenceNetworkView() {
     } finally {
       setLoadingSignals(false);
     }
-  };
+  }, [incidentId]);
 
   useEffect(() => {
     if (!toast) return;
@@ -75,7 +75,6 @@ export function IntelligenceNetworkView() {
   }, [toast]);
 
   useEffect(() => {
-    void loadSignals().catch(() => {});
     void fetchJsonWithRetry<{ agents?: Array<{ id: string; name: string; role: string }> }>("/api/agents")
       .then((data) => setAgents(data.agents ?? []))
       .catch(() => {});
@@ -86,15 +85,15 @@ export function IntelligenceNetworkView() {
         if (rows[0]?.id) setIncidentId((current) => current || rows[0].id);
       })
       .catch(() => {});
-    const timer = setInterval(() => {
-      void loadSignals().catch(() => {});
-    }, 30000);
-    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
     void loadSignals().catch(() => {});
-  }, [incidentId]);
+    const timer = setInterval(() => {
+      void loadSignals().catch(() => {});
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [loadSignals]);
 
   const investigate = async () => {
     if (!vendorName.trim()) {
