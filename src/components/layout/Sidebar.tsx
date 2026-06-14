@@ -62,7 +62,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2">
         {sections.map((section) => {
           const items = NAV_ITEMS.filter((i) => i.section === section.key);
           if (!items.length) return null;
@@ -98,17 +98,17 @@ export function Sidebar() {
           );
         })}
 
-        <div className="mt-2 border-t border-cyan-500/10 pt-2">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col border-t border-cyan-500/10 pt-2">
           <div className="mb-1.5 flex items-center justify-between px-2">
             <span className="font-mono text-[10px] font-medium uppercase tracking-wider text-slate-500">Demo Features</span>
             <span className="font-mono text-[10px] text-cyan-400">{doneCount}/{demoFeatures.length}</span>
           </div>
-          <div className="max-h-36 space-y-0.5 overflow-y-auto px-1">
+          <div className="flex-1 space-y-1 overflow-y-auto px-1">
             {demoFeatures.map((f) => (
               <div
                 key={f.id}
                 className={cn(
-                  "flex items-center gap-1.5 rounded px-1.5 py-0.5 font-mono text-[9px]",
+                  "flex items-center gap-1.5 rounded px-1.5 py-1 font-mono text-[10px]",
                   f.done ? "text-emerald-400" : "text-slate-500"
                 )}
               >

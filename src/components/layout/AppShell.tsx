@@ -27,9 +27,9 @@ export function AppShell({ title, subtitle, children, fullWidth, statusItems }: 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-neural-bg">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopNav title={title} subtitle={subtitle} />
-        <main className={fullWidth ? "min-h-0 flex-1 overflow-hidden" : "min-h-0 flex-1 overflow-y-auto p-3"}>
+        <main className={fullWidth ? "relative z-0 min-h-0 flex-1 overflow-hidden" : "relative z-0 min-h-0 flex-1 overflow-y-auto p-3"}>
           {children}
         </main>
         <StatusBar items={statusItems ?? defaultStatus} />
