@@ -9,6 +9,14 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neural_ops?schema=neural_ops
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/neural_ops?schema=neural_ops
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: dummy-service-role
+      AUTH_DEV_MODE: "false"
+      ENV_VALIDATION_STRICT: "false"
 
     steps:
       - name: Checkout
@@ -34,10 +42,3 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neural_ops
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
-          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role
-          AUTH_DEV_MODE: "false"
-          ENV_VALIDATION_STRICT: "false"
