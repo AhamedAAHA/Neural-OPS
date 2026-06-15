@@ -55,6 +55,7 @@ export const LIVE_STATUSES = {
   legal_review: { label: "Legal Agent Reviewing", color: "amber" },
   executive_waiting: { label: "Executive Agent Waiting", color: "violet" },
   investigating: { label: "Investigation Active", color: "cyan" },
+  contained: { label: "Incident Contained", color: "emerald" },
   risk_simulation: { label: "Risk Simulation Running", color: "amber" },
 } as const;
 

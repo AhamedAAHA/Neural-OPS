@@ -29,17 +29,24 @@ export const GET = withAuth("incidents:read", async (request, { user }) => {
 export const POST = withAuth("incidents:create", async (request, { user }) => {
   const body = await parseBody(request, createIncidentSchema);
   const result = await createIncident(user, body);
-  await startInvestigationWorkflow(result.incident.id);
-  await executeWorkflowsForTrigger({
-    organizationId: user.organizationId,
-    triggerType: "NEW_INCIDENT",
-    incidentId: result.incident.id,
-    payload: {
-      incidentId: result.incident.id,
-      title: result.incident.title,
-      type: result.incident.type,
-      severity: result.incident.severity,
-    },
-  });
-  return json(result, 201);
+
+  void startInvestigationWorkflow(result.incident.id)
+    .then(() =>
+      executeWorkflowsForTrigger({
+        organizationId: user.organizationId,
+        triggerType: "NEW_INCIDENT",
+        incidentId: result.incident.id,
+        payload: {
+          incidentId: result.incident.id,
+          title: result.incident.title,
+          type: result.incident.type,
+          severity: result.incident.severity,
+        },
+      })
+    )
+    .catch((workflowError) => {
+      console.error("[API Warning] Investigation workflow failed:", workflowError);
+    });
+
+  return json({ ...result, workflowStarted: true }, 201);
 });

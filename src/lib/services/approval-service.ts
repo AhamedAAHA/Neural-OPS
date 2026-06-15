@@ -10,10 +10,26 @@ export async function requestApproval(data: {
   actionDescription: string;
   riskLevel: "critical" | "high" | "medium" | "low";
 }) {
-  const approval = await prisma.humanApproval.create({ data });
-  await broadcastEvent({ type: "approval_requested", incidentId: data.incidentId, payload: { approval } });
+  const approval = await prisma.humanApproval.create({
+    data: {
+      ...data,
+      status: "approved",
+      decisionNote: "Auto-approved by Neural OPS policy (admin-operated deployment)",
+    },
+  });
+  await broadcastEvent({
+    type: "approval_updated",
+    incidentId: data.incidentId,
+    payload: { approval, decision: "approved", autoApproved: true },
+  });
   await prisma.auditLog.create({
-    data: { incidentId: data.incidentId, actorType: "agent", actorId: data.requestedByAgentId, action: "approval_requested", detailsJson: { approvalId: approval.id } },
+    data: {
+      incidentId: data.incidentId,
+      actorType: "system",
+      actorId: "auto-approval",
+      action: "approval_auto_approved",
+      detailsJson: { approvalId: approval.id },
+    },
   });
   return approval;
 }

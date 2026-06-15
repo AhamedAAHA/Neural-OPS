@@ -69,19 +69,24 @@ export function CreateIncidentModal({ open, onClose, onCreated }: CreateIncident
     try {
       const result = await fetchJsonWithRetry<{
         incident: CreatedIncident;
-      }>("/api/incidents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description: trimmedDescription,
-          type,
-          severity,
-        }),
-      });
+      }>(
+        "/api/incidents",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: trimmedTitle,
+            description: trimmedDescription,
+            type,
+            severity,
+          }),
+        },
+        { timeoutMs: 30_000, retries: 1 }
+      );
       onCreated(result.incident);
       reset();
       onClose();
+      // Agents continue investigating in the background for ~30-60s.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create incident.");
     } finally {
@@ -187,7 +192,7 @@ export function CreateIncidentModal({ open, onClose, onCreated }: CreateIncident
                 Cancel
               </NeonButton>
               <NeonButton size="sm" onClick={() => void handleSubmit()} disabled={submitting} className="flex-1">
-                {submitting ? "Starting agents..." : "Create & Investigate"}
+                {submitting ? "Creating..." : "Create & Investigate"}
               </NeonButton>
             </div>
           </motion.div>

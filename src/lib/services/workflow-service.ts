@@ -159,17 +159,18 @@ async function runAutomatedInvestigationFlow(
     "high"
   );
 
-  // Executive strategy waiting
-  await es.sendMessageToBand(null, "DECISION", "Awaiting final human decision. Recommended: Approve freeze + forensic audit", {
-    recommendation: "Approve freeze + initiate forensic audit + prepare disclosure",
+  // Executive strategy — auto-approved under admin-operated policy
+  await es.sendMessageToBand(null, "DECISION", "Investigation complete. Recommended actions auto-approved and queued for execution.", {
+    recommendation: "Freeze payments + initiate forensic audit + prepare disclosure",
+    autoApproved: true,
   });
 
   // Audit
   await au.analyze({ action: "workflow_complete", evidenceCount: 2 });
   await au.sendMessageToBand(null, "CONTEXT_SHARE", "All agent actions recorded. Full audit trail available.", { evidenceCount: 2 });
 
-  await prisma.incident.update({ where: { id: incidentId }, data: { status: "pending_approval" } });
-  await broadcastEvent({ type: "incident_status", incidentId, payload: { status: "pending_approval", riskScore: 87 } });
+  await prisma.incident.update({ where: { id: incidentId }, data: { status: "contained" } });
+  await broadcastEvent({ type: "incident_status", incidentId, payload: { status: "contained", riskScore: 87 } });
 }
 
 async function saveEvidence(

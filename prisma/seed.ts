@@ -77,7 +77,7 @@ async function main() {
       description: "Suspicious vendor payments totaling $847K detected. Finance Manager credentials used for unauthorized approval.",
       type: "Vendor Fraud",
       severity: "critical" as const,
-      status: "pending_approval" as const,
+      status: "contained" as const,
     },
     {
       title: "Customer database breach detected",
@@ -278,7 +278,8 @@ async function main() {
           actionTitle: "Freeze vendor payments and notify stakeholders",
           actionDescription: "Critical action requiring executive approval",
           riskLevel: "high",
-          status: "pending",
+          status: "approved",
+          decisionNote: "Auto-approved by Neural OPS policy (admin-operated deployment)",
         },
       });
     }

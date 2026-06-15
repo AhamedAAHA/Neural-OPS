@@ -11,6 +11,35 @@ const DEFAULT_LIVE_INCIDENT = {
   severity: "critical" as const,
 };
 
+async function autoResolvePendingApprovals(organizationId: string) {
+  const pendingApprovals = await prisma.humanApproval.findMany({
+    where: {
+      status: "pending",
+      incident: { organizationId },
+    },
+    select: { id: true, incidentId: true },
+  });
+
+  if (!pendingApprovals.length) return;
+
+  await prisma.humanApproval.updateMany({
+    where: { id: { in: pendingApprovals.map((approval) => approval.id) } },
+    data: {
+      status: "approved",
+      decisionNote: "Auto-approved by Neural OPS policy (admin-operated deployment)",
+    },
+  });
+
+  const incidentIds = [...new Set(pendingApprovals.map((approval) => approval.incidentId))];
+  await prisma.incident.updateMany({
+    where: {
+      id: { in: incidentIds },
+      status: "pending_approval",
+    },
+    data: { status: "contained" },
+  });
+}
+
 async function syncBandRoomsForOrganization(organizationId: string) {
   const rooms = await prisma.investigationRoom.findMany({
     where: { incident: { organizationId } },
@@ -52,6 +81,7 @@ async function syncBandRoomsForOrganization(organizationId: string) {
 
 export async function ensureLiveOperations(user: AuthUser) {
   await syncBandRoomsForOrganization(user.organizationId);
+  await autoResolvePendingApprovals(user.organizationId);
 
   const existingCount = await prisma.incident.count({
     where: { organizationId: user.organizationId },

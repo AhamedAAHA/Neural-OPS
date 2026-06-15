@@ -52,6 +52,7 @@ interface IncidentSummary {
 interface IncidentDetails {
   id: string;
   title: string;
+  status: string;
   severity: "critical" | "high" | "medium" | "low";
   rooms: Array<{
     id: string;
@@ -160,8 +161,14 @@ export function CommandCenterView() {
         activeAgentCount: data.incident.rooms[0]?.agents.length ?? 0,
         evidenceCount: data.incident.evidence.length,
         riskScore: Math.round(data.incident.riskAssessments[0]?.riskScore ?? 0),
-        approvalStatus: data.incident.approvals.find((item) => item.status === "pending") ? "Pending Approval" : "No pending approvals",
+        approvalStatus: data.incident.approvals.find((item) => item.status === "pending") ? "Pending Approval" : "Auto-approved",
         bandConnected: (data.incident.rooms[0]?.agents.length ?? 0) > 0,
+        liveStatus:
+          data.incident.status === "contained" || data.incident.status === "resolved"
+            ? "idle"
+            : data.incident.status === "investigating"
+              ? "investigating"
+              : "idle",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load incident details");
@@ -333,6 +340,10 @@ export function CommandCenterView() {
             </div>
           )}
           <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+            <NeonButton size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              New Incident
+            </NeonButton>
             <NeonButton href="/investigation" size="sm">Investigation Room</NeonButton>
             <NeonButton href="/evidence" variant="secondary" size="sm">Evidence Graph</NeonButton>
           </div>

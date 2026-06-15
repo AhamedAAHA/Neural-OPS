@@ -182,10 +182,10 @@ export const useNeuralOpsStore = create<NeuralOpsState>((set) => ({
     set((state) => ({
       incidentCount: incidents.length,
       selectedIncidentId: state.selectedIncidentId ?? incidents[0]?.id ?? null,
-      liveStatus: incidents.some((i) => i.status === "pending_approval")
-        ? "awaiting_approval"
-        : incidents.some((i) => i.status === "investigating")
-          ? "investigating"
+      liveStatus: incidents.some((i) => i.status === "investigating")
+        ? "investigating"
+        : incidents.some((i) => i.status === "contained" || i.status === "resolved")
+          ? "idle"
           : incidents.length
             ? "idle"
             : "idle",

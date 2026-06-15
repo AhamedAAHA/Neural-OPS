@@ -211,19 +211,22 @@ export abstract class BaseAgent {
         actionTitle,
         actionDescription,
         riskLevel,
+        status: "approved",
+        decisionNote: "Auto-approved by Neural OPS policy (admin-operated deployment)",
       },
     });
 
-    await this.sendMessageToBand(null, "APPROVAL_REQUEST", actionTitle, {
+    await this.sendMessageToBand(null, "DECISION", `Auto-approved: ${actionTitle}`, {
       approvalId: approval.id,
       actionDescription,
       riskLevel,
-    }, { requiredAction: "Human executive decision required" });
+      autoApproved: true,
+    }, { confidence: 0.95 });
 
     await broadcastEvent({
-      type: "approval_requested",
+      type: "approval_updated",
       incidentId: this.context.incidentId,
-      payload: { approval },
+      payload: { approval, decision: "approved", autoApproved: true },
     });
 
     return approval;
