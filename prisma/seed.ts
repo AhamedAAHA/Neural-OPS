@@ -126,7 +126,7 @@ async function main() {
       { name: "Audit Agent", role: "AuditAgent", tier: "Governance" as const },
     ];
 
-    const agents = [];
+    const agents: Awaited<ReturnType<typeof prisma.agent.create>>[] = [];
     for (const a of agentRoles) {
       const agent = await prisma.agent.create({
         data: {
@@ -159,6 +159,20 @@ async function main() {
       { from: risk, to: commander, type: "RISK_UPDATE" as const, summary: "Risk score calculated" },
       { from: legal, to: null, type: "APPROVAL_REQUEST" as const, summary: "Human approval requested for critical action" },
     ];
+
+    await prisma.bandRoom.create({
+      data: {
+        incidentId: incident.id,
+        organizationId: organization.id,
+        roomExternalId: bandRoomId,
+        name: room.name,
+        status: "active",
+        connectedAgents: agents.length,
+        messageCount: messages.length,
+        lastActivityAt: new Date(),
+        metadataJson: { source: "seed", incidentType: inc.type },
+      },
+    });
 
     for (const msg of messages) {
       const bandMsgId = await band.sendMessage(bandRoomId, msg.from.id, msg.to?.id ?? null, {

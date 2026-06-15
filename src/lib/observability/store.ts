@@ -155,6 +155,7 @@ export async function getOperationsDashboardSnapshot(organizationId: string) {
     activeInvestigations,
     activeUsers,
     bandRooms,
+    activeAgents,
   ] = await Promise.all([
     getObservabilityPrisma().apiRequestMetric.findMany({
       where: { organizationId, createdAt: { gte: window15m } },
@@ -181,6 +182,12 @@ export async function getOperationsDashboardSnapshot(organizationId: string) {
     getObservabilityPrisma().bandRoom.findMany({
       where: { organizationId, status: { not: "closed" } },
       select: { connectedAgents: true, messageCount: true, lastActivityAt: true },
+    }),
+    getObservabilityPrisma().agent.count({
+      where: {
+        status: { not: "offline" },
+        room: { incident: { organizationId } },
+      },
     }),
   ]);
 
@@ -227,11 +234,18 @@ export async function getOperationsDashboardSnapshot(organizationId: string) {
   const agentHealth = computeService(sourceStats.AGENT);
   const databaseHealth = computeService(sourceStats.DATABASE);
   const brightDataHealth = computeService(sourceStats.BRIGHT_DATA);
-  const bandHealth = computeService(sourceStats.BAND);
+  const bandRoomConnections = bandRooms.reduce((sum, room) => sum + room.connectedAgents, 0);
+  const realtimeConnections = Math.max(bandRoomConnections, activeAgents);
+  const bandHealth = {
+    ...computeService(sourceStats.BAND),
+    status: (realtimeConnections > 0 ? "healthy" : computeService(sourceStats.BAND).status) as ServiceHealthStatus,
+  };
   const speechmaticsHealth = computeService(sourceStats.SPEECHMATICS);
-  const realtimeHealth = computeService(sourceStats.REALTIME);
-
-  const realtimeConnections = bandRooms.reduce((sum, room) => sum + room.connectedAgents, 0);
+  const realtimeHealth = {
+    ...computeService(sourceStats.REALTIME),
+    status: (realtimeConnections > 0 ? "healthy" : computeService(sourceStats.REALTIME).status) as ServiceHealthStatus,
+    activeConnections: realtimeConnections,
+  };
 
   const payload = {
     generatedAt: new Date().toISOString(),

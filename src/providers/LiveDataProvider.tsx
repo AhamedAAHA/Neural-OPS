@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 import { useNeuralOpsStore } from "@/store/neural-ops";
 
@@ -11,37 +11,50 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
   const hydrateApprovals = useNeuralOpsStore((s) => s.hydrateApprovals);
   const hydrateExecutiveRecommendation = useNeuralOpsStore((s) => s.hydrateExecutiveRecommendation);
   const selectedIncidentId = useNeuralOpsStore((s) => s.selectedIncidentId);
+  const bootstrappedRef = useRef(false);
+
+  const loadCoreData = useCallback(async () => {
+    if (!bootstrappedRef.current) {
+      bootstrappedRef.current = true;
+      try {
+        await fetchJsonWithRetry("/api/operations/bootstrap", { method: "POST" });
+      } catch {
+        bootstrappedRef.current = false;
+      }
+    }
+
+    const [dashboardRes, incidentsRes, intelligenceRes] = await Promise.allSettled([
+      fetchJsonWithRetry<{ dashboard?: Record<string, unknown> }>("/api/operations/dashboard", { cache: "no-store" }),
+      fetchJsonWithRetry<{ incidents?: Array<{ id: string; title: string; status: string; severity: string }> }>("/api/incidents", { cache: "no-store" }),
+      fetchJsonWithRetry<{ signals?: Array<{ id: string; source: string; agent: string; signal: string; severity: string; timestamp: string }> }>("/api/intelligence", { cache: "no-store" }),
+    ]);
+
+    let incidents = incidentsRes.status === "fulfilled" ? incidentsRes.value.incidents ?? [] : [];
+
+    if (dashboardRes.status === "fulfilled" && dashboardRes.value.dashboard) {
+      hydrateDashboard(dashboardRes.value.dashboard);
+    }
+    hydrateIncidents(incidents);
+    if (intelligenceRes.status === "fulfilled") {
+      hydrateIntelligence(intelligenceRes.value.signals ?? []);
+    }
+  }, [hydrateDashboard, hydrateIncidents, hydrateIntelligence]);
 
   useEffect(() => {
     let active = true;
 
     const load = async () => {
-      const [dashboardRes, incidentsRes, intelligenceRes] = await Promise.allSettled([
-        fetchJsonWithRetry<{ dashboard?: Record<string, unknown> }>("/api/operations/dashboard", { cache: "no-store" }),
-        fetchJsonWithRetry<{ incidents?: Array<{ id: string; title: string; status: string; severity: string }> }>("/api/incidents", { cache: "no-store" }),
-        fetchJsonWithRetry<{ signals?: Array<{ id: string; source: string; agent: string; signal: string; severity: string; timestamp: string }> }>("/api/intelligence", { cache: "no-store" }),
-      ]);
-
       if (!active) return;
-
-      if (dashboardRes.status === "fulfilled" && dashboardRes.value.dashboard) {
-        hydrateDashboard(dashboardRes.value.dashboard);
-      }
-      if (incidentsRes.status === "fulfilled") {
-        hydrateIncidents(incidentsRes.value.incidents ?? []);
-      }
-      if (intelligenceRes.status === "fulfilled") {
-        hydrateIntelligence(intelligenceRes.value.signals ?? []);
-      }
+      await loadCoreData();
     };
 
     void load();
-    const timer = setInterval(() => void load(), 60_000);
+    const timer = setInterval(() => void load(), 15_000);
     return () => {
       active = false;
       clearInterval(timer);
     };
-  }, [hydrateDashboard, hydrateIncidents, hydrateIntelligence]);
+  }, [loadCoreData]);
 
   useEffect(() => {
     if (!selectedIncidentId) return;
@@ -77,7 +90,7 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
     };
 
     void loadIncidentContext();
-    const timer = setInterval(() => void loadIncidentContext(), 60_000);
+    const timer = setInterval(() => void loadIncidentContext(), 30_000);
     return () => {
       active = false;
       clearInterval(timer);

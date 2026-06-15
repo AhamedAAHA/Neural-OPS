@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Bot, CheckCircle, FileText, Search, Shield, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -126,14 +126,61 @@ export function CommandCenterView() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  useRealtime(selectedIncidentId || undefined);
+  const refreshSeqRef = useRef(0);
+
+  const loadIncidentDetails = useCallback(async (incidentId: string, options?: { silent?: boolean }) => {
+    if (!incidentId) return;
+    if (!options?.silent) setLoading(true);
+    try {
+      setError(null);
+      const data = await fetchJsonWithRetry<{ incident: IncidentDetails }>(
+        `/api/incidents/${encodeURIComponent(incidentId)}`,
+        { cache: "no-store" },
+        { retries: 2 }
+      );
+      setDetails(data.incident);
+      useNeuralOpsStore.setState({
+        selectedIncidentId: data.incident.id,
+        incidentCount: incidents.length || 1,
+        activeAgentCount: data.incident.rooms[0]?.agents.length ?? 0,
+        evidenceCount: data.incident.evidence.length,
+        riskScore: Math.round(data.incident.riskAssessments[0]?.riskScore ?? 0),
+        approvalStatus: data.incident.approvals.find((item) => item.status === "pending") ? "Pending Approval" : "No pending approvals",
+        bandConnected: (data.incident.rooms[0]?.agents.length ?? 0) > 0,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load incident details");
+    } finally {
+      if (!options?.silent) setLoading(false);
+    }
+  }, [incidents.length]);
+
+  const handleRealtimeEvent = useCallback(() => {
+    refreshSeqRef.current += 1;
+    if (selectedIncidentId) {
+      void loadIncidentDetails(selectedIncidentId, { silent: true });
+    }
+  }, [loadIncidentDetails, selectedIncidentId]);
+
+  useRealtime(selectedIncidentId || undefined, { onEvent: handleRealtimeEvent });
 
   useEffect(() => {
     let active = true;
     const loadIncidents = async () => {
       try {
         setError(null);
-        const data = await fetchJsonWithRetry<{ incidents: IncidentSummary[] }>("/api/incidents", { cache: "no-store" }, { retries: 2 });
+        let data = await fetchJsonWithRetry<{ incidents: IncidentSummary[] }>("/api/incidents", { cache: "no-store" }, { retries: 2 });
+        if (!active) return;
+
+        if (!data.incidents?.length) {
+          try {
+            await fetchJsonWithRetry("/api/operations/bootstrap", { method: "POST" });
+            data = await fetchJsonWithRetry<{ incidents: IncidentSummary[] }>("/api/incidents", { cache: "no-store" }, { retries: 2 });
+          } catch {
+            // bootstrap may have already run from LiveDataProvider
+          }
+        }
+
         if (!active) return;
         setIncidents(data.incidents ?? []);
         if (data.incidents?.[0]?.id) setSelectedIncidentId((curr) => curr || data.incidents[0].id);
@@ -145,8 +192,10 @@ export function CommandCenterView() {
       }
     };
     void loadIncidents();
+    const timer = setInterval(() => void loadIncidents(), 30_000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
   }, []);
 
@@ -154,36 +203,18 @@ export function CommandCenterView() {
     if (!selectedIncidentId) return;
     let active = true;
     const loadDetails = async () => {
-      setLoading(true);
-      try {
-        setError(null);
-        const data = await fetchJsonWithRetry<{ incident: IncidentDetails }>(
-          `/api/incidents/${encodeURIComponent(selectedIncidentId)}`,
-          { cache: "no-store" },
-          { retries: 2 }
-        );
-        if (!active) return;
-        setDetails(data.incident);
-        useNeuralOpsStore.setState({
-          selectedIncidentId: data.incident.id,
-          incidentCount: incidents.length || 1,
-          activeAgentCount: data.incident.rooms[0]?.agents.length ?? 0,
-          evidenceCount: data.incident.evidence.length,
-          riskScore: Math.round(data.incident.riskAssessments[0]?.riskScore ?? 0),
-          approvalStatus: data.incident.approvals.find((item) => item.status === "pending") ? "Pending Approval" : "No pending approvals",
-        });
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load incident details");
-      } finally {
-        if (active) setLoading(false);
-      }
+      if (!active) return;
+      await loadIncidentDetails(selectedIncidentId);
     };
     void loadDetails();
+    const timer = setInterval(() => {
+      if (active) void loadIncidentDetails(selectedIncidentId, { silent: true });
+    }, 15_000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
-  }, [incidents.length, selectedIncidentId]);
+  }, [loadIncidentDetails, selectedIncidentId]);
 
   const activeAgents = details?.rooms[0]?.agents ?? [];
   const recentMessages = useMemo(() => {

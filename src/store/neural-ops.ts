@@ -162,8 +162,8 @@ export const useNeuralOpsStore = create<NeuralOpsState>((set) => ({
 
       return {
         incidentCount: metrics.activeInvestigations ?? state.incidentCount,
-        activeAgentCount: realtimeConnections,
-        bandConnected: bandStatus === "healthy" || realtimeConnections > 0,
+        activeAgentCount: Math.max(state.activeAgentCount, realtimeConnections),
+        bandConnected: bandStatus === "healthy" || realtimeConnections > 0 || state.bandConnected,
         aimlLatency: Math.round(services.agent?.latency ?? api.responseTimeMs ?? 0),
         featherlessLatency: Math.round(services.database?.latency ?? 0),
         brightDataLatency: Math.round(services.brightData?.latency ?? 0),

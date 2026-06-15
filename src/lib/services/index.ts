@@ -35,6 +35,7 @@ export { AuditLogger, logAuditEvent, getAuditLogs } from "./audit-service";
 export { fetchIntelligenceSignals, queryVendorIntelligence, searchKnowledge, getVendorMemory } from "./intelligence-service";
 export { getDecisionOptions, getExecutiveRecommendation, buildExecutiveDecision, ensureApprovalChain } from "./decision-service";
 export { MemoryAgent } from "../agents/memory-agent";
+export { ensureLiveOperations } from "./live-bootstrap-service";
 
 // Aliased module names per architecture spec
 export { createIncident as IncidentService_create } from "./incident-service";

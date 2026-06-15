@@ -27,7 +27,7 @@ export async function createIncident(
       type: data.type,
       severity: data.severity,
     },
-    { incidentId: incident.id }
+    { incidentId: incident.id, organizationId: user.organizationId }
   );
 
   const room = await prisma.investigationRoom.create({
@@ -61,7 +61,7 @@ export async function createIncident(
       tier: commanderDef.tier,
       capabilities: commanderDef.capabilities,
     },
-    { incidentId: incident.id, roomId: room.id }
+    { incidentId: incident.id, roomId: room.id, organizationId: user.organizationId }
   );
 
   const agent = await wrapAgent(commander, incident.id, room.id, bandRoomId);

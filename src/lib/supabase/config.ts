@@ -42,6 +42,7 @@ export function resolveSupabaseAdminKey(): string | null {
   const candidates = [
     readEnv("SUPABASE_SERVICE_ROLE_KEY"),
     readEnv("SUPABASE_SECRET_KEY"),
+    readEnv("SUPABASE_SERVICE_ROLE_KEY_2"),
   ].filter((key): key is string => Boolean(key));
 
   const jwtServiceRole = candidates.find((key) => isJwtKey(key));
