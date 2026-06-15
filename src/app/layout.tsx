@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   enforceEnvironmentIfStrict();
 
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`dark ${jetbrains.variable} ${spaceGrotesk.variable} ${orbitron.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`dark bg-neural-bg ${jetbrains.variable} ${spaceGrotesk.variable} ${orbitron.variable}`}>
       <body className="h-full overflow-hidden font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
