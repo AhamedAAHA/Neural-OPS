@@ -20,16 +20,23 @@
   html {
     scroll-behavior: smooth;
     height: 100%;
+    @apply bg-neural-bg;
   }
 
   body {
     @apply h-full overflow-hidden bg-neural-bg font-mono text-slate-300 antialiased;
+    /* Subtle grid lines — the NeuralNetworkCanvas provides the animated layer */
     background-image:
-      linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(34, 211, 238, 0.1), transparent),
-      radial-gradient(ellipse 50% 40% at 100% 100%, rgba(139, 92, 246, 0.08), transparent);
-    background-size: 48px 48px, 48px 48px, 100% 100%, 100% 100%;
+      linear-gradient(rgba(34, 211, 238, 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 211, 238, 0.018) 1px, transparent 1px);
+    background-size: 48px 48px, 48px 48px;
+  }
+
+  /* The global NeuralNetworkCanvas is fixed/z-0 so it renders behind everything */
+  canvas[aria-hidden] {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
   }
 
   ::selection {

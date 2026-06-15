@@ -1,12 +1,5 @@
-import { LandingHero, LandingSections } from "@/components/landing/LandingPage";
-import { LandingNav } from "@/components/landing/LandingNav";
+import { LandingPage } from "@/components/landing/LandingPage";
 
 export default function OverviewPage() {
-  return (
-    <div className="min-h-screen w-full overflow-y-auto bg-neural-bg">
-      <LandingNav />
-      <LandingHero />
-      <LandingSections />
-    </div>
-  );
+  return <LandingPage />;
 }
