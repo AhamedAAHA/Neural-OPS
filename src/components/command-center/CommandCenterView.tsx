@@ -3,9 +3,10 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, Bot, CheckCircle, FileText, Search, Shield, UserPlus } from "lucide-react";
+import { AlertTriangle, Bot, CheckCircle, FileText, Plus, Search, Shield, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberBadge, CyberPanel } from "@/components/cyber/CyberPanel";
+import { CreateIncidentModal } from "@/components/command-center/CreateIncidentModal";
 import { NeonButton } from "@/components/ui/NeonButton";
 import { messageTypeColor, severityColor } from "@/lib/utils";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
@@ -126,7 +127,21 @@ export function CommandCenterView() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const refreshSeqRef = useRef(0);
+
+  const handleIncidentCreated = useCallback(
+    (incident: IncidentSummary) => {
+      setIncidents((prev) => [incident, ...prev.filter((item) => item.id !== incident.id)]);
+      setSelectedIncidentId(incident.id);
+      useNeuralOpsStore.setState({
+        selectedIncidentId: incident.id,
+        incidentCount: incidents.length + 1,
+        liveStatus: "investigating",
+      });
+    },
+    [incidents.length]
+  );
 
   const loadIncidentDetails = useCallback(async (incidentId: string, options?: { silent?: boolean }) => {
     if (!incidentId) return;
@@ -240,6 +255,10 @@ export function CommandCenterView() {
       <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 grid-rows-[1fr_68px] gap-1.5 p-1.5">
         <div className="col-span-2 min-h-0 overflow-hidden">
           <CyberPanel title="Incident Queue" compact glow="red" className="flex h-full flex-col">
+            <NeonButton size="sm" onClick={() => setCreateOpen(true)} className="mb-2 w-full">
+              <Plus className="h-3.5 w-3.5" />
+              New Incident
+            </NeonButton>
             <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
               {incidents.map((incident) => {
                 const isActive = incident.id === selectedIncidentId;
@@ -264,7 +283,15 @@ export function CommandCenterView() {
                   </button>
                 );
               })}
-              {!incidents.length && !loading && <div className="font-mono text-[10px] text-slate-500">No incidents found.</div>}
+              {!incidents.length && !loading && (
+                <div className="space-y-2 py-2 text-center">
+                  <div className="font-mono text-[10px] text-slate-500">No incidents yet.</div>
+                  <NeonButton size="sm" onClick={() => setCreateOpen(true)} className="w-full">
+                    <Plus className="h-3.5 w-3.5" />
+                    Create first incident
+                  </NeonButton>
+                </div>
+              )}
             </div>
           </CyberPanel>
         </div>
@@ -280,6 +307,10 @@ export function CommandCenterView() {
                 <div className="mt-1 max-w-[320px] font-mono text-[11px] text-slate-400">
                   Create or open an incident to populate the digital twin, investigation stream, and timeline.
                 </div>
+                <NeonButton size="sm" onClick={() => setCreateOpen(true)} className="mt-3">
+                  <Plus className="h-3.5 w-3.5" />
+                  New Incident
+                </NeonButton>
               </div>
             </div>
           )}
@@ -389,6 +420,11 @@ export function CommandCenterView() {
           {error}
         </div>
       )}
+      <CreateIncidentModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handleIncidentCreated}
+      />
     </AppShell>
   );
 }
