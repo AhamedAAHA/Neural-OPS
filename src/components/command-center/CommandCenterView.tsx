@@ -14,11 +14,29 @@ import { useNeuralOpsStore } from "@/store/neural-ops";
 import type { MessageType, TimelineEvent } from "@/lib/types";
 
 const CommandCenterCanvas = dynamic(
-  () => import("@/components/command-center/CommandCenterCanvas").then((m) => m.CommandCenterCanvas),
-  { ssr: false }
+  () =>
+    import("@/components/command-center/CommandCenterCanvas")
+      .then((m) => m.CommandCenterCanvas)
+      .catch(() => {
+        return function CommandCenterCanvasFallback() {
+          return (
+            <div className="flex h-full w-full items-center justify-center bg-[#020617] font-mono text-xs text-slate-400">
+              3D canvas unavailable
+            </div>
+          );
+        };
+      }),
+  { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#020617]/80" /> }
 );
 const EnterpriseNetworkTwinScene = dynamic(
-  () => import("@/components/3d/EnterpriseNetworkTwin").then((m) => m.EnterpriseNetworkTwinScene),
+  () =>
+    import("@/components/3d/EnterpriseNetworkTwin")
+      .then((m) => m.EnterpriseNetworkTwinScene)
+      .catch(() => {
+        return function EnterpriseNetworkTwinFallback() {
+          return null;
+        };
+      }),
   { ssr: false }
 );
 

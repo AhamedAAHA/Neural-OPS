@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LiveDataProvider } from "@/providers/LiveDataProvider";
 import { MatrixRainCanvas } from "@/components/ui/MatrixRainCanvas";
+import { installRuntimeErrorRecovery } from "@/lib/client/runtime-error-handler";
 
 function initClientSentry() {
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
@@ -19,6 +20,34 @@ function initClientSentry() {
   });
 }
 
+function useAuthenticatedSession() {
+  const [ready, setReady] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then((res) => {
+        if (!active) return;
+        setAuthenticated(res.ok);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAuthenticated(false);
+      })
+      .finally(() => {
+        if (!active) return;
+        setReady(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return { ready, authenticated };
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -28,15 +57,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
+  const { ready, authenticated } = useAuthenticatedSession();
 
   useEffect(() => {
     initClientSentry();
+    return installRuntimeErrorRecovery();
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <MatrixRainCanvas />
-      <LiveDataProvider>{children}</LiveDataProvider>
+      {ready && authenticated ? <LiveDataProvider>{children}</LiveDataProvider> : children}
     </QueryClientProvider>
   );
 }

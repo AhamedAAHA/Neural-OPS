@@ -4,7 +4,17 @@ import dynamic from "next/dynamic";
 import { Suspense, useMemo, useState } from "react";
 import { Scanlines } from "@/components/ui/Scanlines";
 
-const Canvas = dynamic(() => import("@react-three/fiber").then((m) => m.Canvas), { ssr: false });
+const Canvas = dynamic(
+  () =>
+    import("@react-three/fiber")
+      .then((m) => m.Canvas)
+      .catch(() => {
+        return function CanvasFallback() {
+          return null;
+        };
+      }),
+  { ssr: false }
+);
 
 interface CommandCenterCanvasProps {
   children: React.ReactNode;

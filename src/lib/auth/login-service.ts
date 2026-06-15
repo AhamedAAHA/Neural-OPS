@@ -26,7 +26,10 @@ async function lookupDbUser(email: string) {
       where: { email },
       include: { organization: true },
     });
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[auth] Failed to load user from database:", error);
+    }
     return null;
   }
 }
@@ -153,10 +156,6 @@ interface ReconcileInput {
 }
 
 async function reconcileExistingSupabaseUserPassword(input: ReconcileInput) {
-  if (process.env.NODE_ENV === "production" && process.env.AUTH_DEV_MODE !== "true") {
-    return;
-  }
-
   const supabase = createSupabaseAdmin();
   if (!supabase) return;
 

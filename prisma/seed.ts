@@ -7,8 +7,10 @@ import path from "node:path";
 import { getBandAdapter } from "../src/lib/band";
 import { createPrismaClient } from "../src/lib/prisma-client-factory";
 
-config({ path: path.resolve(process.cwd(), ".env.local") });
-config({ path: path.resolve(process.cwd(), ".env") });
+const root = process.cwd();
+config({ path: path.resolve(root, ".env") });
+config({ path: path.resolve(root, ".env.local") });
+config({ path: path.resolve(root, ".env.development.local") });
 
 if (process.env.SEED_USE_REAL_BAND !== "true") {
   process.env.USE_MOCK_BAND = "true";

@@ -2,8 +2,11 @@ import { config } from "dotenv";
 import path from "node:path";
 import { defineConfig, env } from "prisma/config";
 
-config({ path: path.resolve(process.cwd(), ".env.local") });
-config({ path: path.resolve(process.cwd(), ".env") });
+const root = process.cwd();
+config({ path: path.resolve(root, ".env") });
+config({ path: path.resolve(root, ".env.local") });
+config({ path: path.resolve(root, ".env.development.local") });
+config({ path: path.resolve(root, ".env.production.local") });
 
 function withAppSchema(url: string) {
   if (!url) return url;

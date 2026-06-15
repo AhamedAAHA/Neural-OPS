@@ -33,7 +33,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  enforceEnvironmentIfStrict();
+  if (process.env.NODE_ENV === "production") {
+    enforceEnvironmentIfStrict();
+  }
 
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`dark bg-neural-bg ${jetbrains.variable} ${spaceGrotesk.variable} ${orbitron.variable}`}>
