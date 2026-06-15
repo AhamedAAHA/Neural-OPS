@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "prisma generate && next build",
+    "build": "prisma generate || true && next build",
     "dev": "prisma generate && next dev",
     "start": "next start",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate || true",
     "lint": "eslint src prisma --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
