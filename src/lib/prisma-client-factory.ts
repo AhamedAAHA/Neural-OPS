@@ -24,9 +24,10 @@ export function resolveDatabaseUrl() {
     }
 
     const isSupabase = /supabase\.com/i.test(parsed.hostname);
+    const isLocalRuntime = process.env.NODE_ENV !== "production";
     const relaxSsl =
       process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "false" ||
-      (process.env.NODE_ENV === "development" && isSupabase);
+      (isLocalRuntime && isSupabase);
 
     if (relaxSsl) {
       parsed.searchParams.delete("sslmode");
@@ -45,9 +46,10 @@ function resolvePoolSsl(connectionString: string) {
   }
 
   const isSupabase = /supabase\.com/i.test(connectionString);
+  const isLocalRuntime = process.env.NODE_ENV !== "production";
   const relaxSsl =
     process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "false" ||
-    (process.env.NODE_ENV === "development" && isSupabase);
+    (isLocalRuntime && isSupabase);
 
   if (relaxSsl) {
     return { rejectUnauthorized: false as const };

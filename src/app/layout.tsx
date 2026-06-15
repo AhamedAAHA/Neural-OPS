@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`dark bg-neural-bg ${jetbrains.variable} ${spaceGrotesk.variable} ${orbitron.variable}`}>
-      <body className="h-full overflow-hidden font-sans antialiased">
+      <body className="min-h-full overflow-x-hidden overflow-y-auto font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>
