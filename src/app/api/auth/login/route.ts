@@ -7,6 +7,9 @@ import { checkRateLimit } from "@/lib/api/rate-limit";
 import { recordApiMetric, recordMonitoringEvent } from "@/lib/observability/store";
 import { withSpan } from "@/lib/observability/tracing";
 
+const LOGIN_RATE_LIMIT = Number(process.env.AUTH_LOGIN_RATE_LIMIT ?? "500");
+const LOGIN_RATE_WINDOW_MS = Number(process.env.AUTH_LOGIN_RATE_WINDOW_MS ?? "3600000");
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -15,8 +18,8 @@ const loginSchema = z.object({
 export async function POST(request: Request) {
   const started = Date.now();
   const route = "/api/auth/login";
-  const ip = request.headers.get("x-forwarded-for") ?? "unknown";
-  if (checkRateLimit(`auth:login:${ip}`, 10)) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (checkRateLimit(`auth:login:${ip}`, LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW_MS)) {
     void recordApiMetric({ route, method: "POST", statusCode: 429, durationMs: Date.now() - started, errorMessage: "rate_limited" }).catch(() => {});
     return NextResponse.json({ ok: false, error: "Too many login attempts. Try again shortly.", route }, { status: 429 });
   }
