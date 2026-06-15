@@ -1,7 +1,5 @@
-import { initSentry } from "@/lib/observability/sentry";
-import { initTracing } from "@/lib/observability/tracing";
-
 export async function register() {
-  initSentry();
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { initTracing } = await import("@/lib/observability/tracing");
   initTracing();
 }

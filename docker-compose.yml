@@ -5,25 +5,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
+        NEXT_PUBLIC_APP_TAGLINE: ${NEXT_PUBLIC_APP_TAGLINE}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
     image: neural-ops:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - .env.local
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/neural_ops
-      DIRECT_URL: postgresql://postgres:postgres@postgres:5432/neural_ops
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
-      SUPABASE_SERVICE_ROLE_KEY: dummy-service-role
-      AUTH_DEV_MODE: "false"
-      ENV_VALIDATION_STRICT: "true"
-      USE_MOCK_BAND: "false"
-      USE_MOCK_BRIGHT_DATA: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/liveness').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -31,7 +27,9 @@ services:
       retries: 3
       start_period: 20s
 
+  # Optional local Postgres (use profile: docker compose --profile local-db up)
   postgres:
+    profiles: ["local-db"]
     image: postgres:16-alpine
     restart: unless-stopped
     environment:

@@ -5,7 +5,12 @@ const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["@prisma/client", ".prisma/client", "@prisma/adapter-pg", "pg"],
   outputFileTracingIncludes: {
-    "/*": ["./node_modules/.prisma/client/**/*", "./node_modules/@prisma/client/**/*"],
+    "/*": [
+      "./node_modules/.prisma/client/**/*",
+      "./node_modules/@prisma/client/**/*",
+      "./node_modules/pg/**/*",
+      "./node_modules/@prisma/adapter-pg/**/*",
+    ],
   },
 };
 

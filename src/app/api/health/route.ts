@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db";
-import { validateEnvironment } from "@/lib/env/validation";
+import { validateCoreEnvironment, validateEnvironment, validateLiveIntegrations } from "@/lib/env/validation";
 
 export async function GET() {
   const env = validateEnvironment();
+  const core = validateCoreEnvironment();
+  const integrations = validateLiveIntegrations();
   const startedAt = Date.now();
 
   let dbOk = false;
@@ -19,18 +21,22 @@ export async function GET() {
     dbError = error instanceof Error ? error.message : "Unknown database error";
   }
 
-  const healthy = env.ok && dbOk;
+  const healthy = core.ok && dbOk;
 
   return Response.json(
     {
-      status: healthy ? "ok" : "degraded",
+      status: healthy ? (integrations.ok ? "ok" : "degraded") : "unhealthy",
       service: "neural-ops",
       timestamp: new Date().toISOString(),
       checks: {
         environment: {
-          ok: env.required.ok,
-          missing: env.required.missing,
-          invalid: env.required.invalid,
+          ok: core.ok,
+          missing: core.missing,
+          invalid: core.invalid,
+        },
+        integrations: {
+          ok: integrations.ok,
+          missing: integrations.missing,
         },
         database: {
           ok: dbOk,

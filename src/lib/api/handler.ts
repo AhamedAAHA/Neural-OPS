@@ -9,7 +9,6 @@ import {
   type Permission,
 } from "@/lib/auth/rbac";
 import { runWithTenantContext } from "@/lib/auth/tenant-context";
-import { captureException } from "@/lib/observability/sentry";
 import { recordApiMetric, recordMonitoringEvent, touchUserActivity } from "@/lib/observability/store";
 import { withSpan } from "@/lib/observability/tracing";
 
@@ -116,7 +115,6 @@ export function withAuth(
         status: "error",
         message: error instanceof Error ? error.message : "Unknown API error",
       }).catch(() => {});
-      captureException(error, { route: url.pathname, method: request.method });
       return response;
     }
   };

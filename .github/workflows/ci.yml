@@ -15,6 +15,14 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
       SUPABASE_SERVICE_ROLE_KEY: dummy-service-role
+      AIML_API_KEY: dummy-aiml-key
+      BAND_API_KEY: dummy-band-key
+      BAND_WORKSPACE_ID: dummy-workspace
+      BAND_AGENT_SECRET: dummy-band-secret
+      BRIGHT_DATA_API_KEY: dummy-bright-data
+      BRIGHT_DATA_SERP_ZONE: dummy-serp
+      BRIGHT_DATA_WEB_UNLOCKER_ZONE: dummy-unlocker
+      SPEECHMATICS_API_KEY: dummy-speechmatics
       AUTH_DEV_MODE: "false"
       ENV_VALIDATION_STRICT: "false"
 
