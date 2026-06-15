@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LiveDataProvider } from "@/providers/LiveDataProvider";
-import { NeuralNetworkCanvas } from "@/components/ui/NeuralNetworkCanvas";
+import { MatrixRainCanvas } from "@/components/ui/MatrixRainCanvas";
 
 function initClientSentry() {
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
@@ -35,7 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <NeuralNetworkCanvas />
+      <MatrixRainCanvas />
       <LiveDataProvider>{children}</LiveDataProvider>
     </QueryClientProvider>
   );
