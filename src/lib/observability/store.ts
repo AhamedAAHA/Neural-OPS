@@ -1,5 +1,6 @@
 import { PrismaClient, type ObservabilityLevel, type ObservabilitySource, type ServiceHealthStatus } from "@prisma/client";
-import { createPrismaClient, resolveDatabaseUrl } from "@/lib/prisma-client-factory";
+import { resolveDatabaseUrl } from "@/lib/prisma-client-factory";
+import { getPrismaRuntime } from "@/lib/prisma-runtime";
 
 function ensureDatabaseSchemaForObservability() {
   const resolved = resolveDatabaseUrl();
@@ -8,12 +9,8 @@ function ensureDatabaseSchemaForObservability() {
 
 ensureDatabaseSchemaForObservability();
 
-const globalForObservability = globalThis as unknown as { observabilityPrisma?: PrismaClient };
-const observabilityPrisma =
-  globalForObservability.observabilityPrisma ??
-  createPrismaClient();
-if (process.env.NODE_ENV !== "production") {
-  globalForObservability.observabilityPrisma = observabilityPrisma;
+function getObservabilityPrisma(): PrismaClient {
+  return getPrismaRuntime();
 }
 
 interface ApiMetricInput {
@@ -53,14 +50,14 @@ interface ServiceHealthInput {
 export async function recordApiMetric(input: ApiMetricInput) {
   let organizationId = input.organizationId;
   if (!organizationId && input.incidentId) {
-    const incident = await observabilityPrisma.incident.findUnique({
+    const incident = await getObservabilityPrisma().incident.findUnique({
       where: { id: input.incidentId },
       select: { organizationId: true },
     });
     organizationId = incident?.organizationId ?? undefined;
   }
 
-  await observabilityPrisma.apiRequestMetric.create({
+  await getObservabilityPrisma().apiRequestMetric.create({
     data: {
       organizationId,
       incidentId: input.incidentId,
@@ -77,14 +74,14 @@ export async function recordApiMetric(input: ApiMetricInput) {
 export async function recordMonitoringEvent(input: MonitoringEventInput) {
   let organizationId = input.organizationId;
   if (!organizationId && input.incidentId) {
-    const incident = await observabilityPrisma.incident.findUnique({
+    const incident = await getObservabilityPrisma().incident.findUnique({
       where: { id: input.incidentId },
       select: { organizationId: true },
     });
     organizationId = incident?.organizationId ?? undefined;
   }
 
-  await observabilityPrisma.monitoringEvent.create({
+  await getObservabilityPrisma().monitoringEvent.create({
     data: {
       organizationId,
       incidentId: input.incidentId,
@@ -100,7 +97,7 @@ export async function recordMonitoringEvent(input: MonitoringEventInput) {
 }
 
 export async function recordServiceHealthCheck(input: ServiceHealthInput) {
-  await observabilityPrisma.serviceHealthCheck.create({
+  await getObservabilityPrisma().serviceHealthCheck.create({
     data: {
       organizationId: input.organizationId,
       service: input.service,
@@ -116,7 +113,7 @@ export async function recordServiceHealthCheck(input: ServiceHealthInput) {
 
 export async function touchUserActivity(input: { organizationId?: string; userId: string; path?: string }) {
   if (!input.organizationId) return;
-  await observabilityPrisma.userActivity.upsert({
+  await getObservabilityPrisma().userActivity.upsert({
     where: {
       organizationId_userId: {
         organizationId: input.organizationId,
@@ -159,29 +156,29 @@ export async function getOperationsDashboardSnapshot(organizationId: string) {
     activeUsers,
     bandRooms,
   ] = await Promise.all([
-    observabilityPrisma.apiRequestMetric.findMany({
+    getObservabilityPrisma().apiRequestMetric.findMany({
       where: { organizationId, createdAt: { gte: window15m } },
       orderBy: { createdAt: "desc" },
       take: 1000,
     }),
-    observabilityPrisma.monitoringEvent.findMany({
+    getObservabilityPrisma().monitoringEvent.findMany({
       where: { organizationId, createdAt: { gte: window15m } },
       orderBy: { createdAt: "desc" },
       take: 1500,
     }),
-    observabilityPrisma.incident.count({
+    getObservabilityPrisma().incident.count({
       where: {
         organizationId,
         status: { in: ["open", "investigating", "pending_approval", "escalated", "contained"] },
       },
     }),
-    observabilityPrisma.userActivity.count({
+    getObservabilityPrisma().userActivity.count({
       where: {
         organizationId,
         lastSeenAt: { gte: window5m },
       },
     }),
-    observabilityPrisma.bandRoom.findMany({
+    getObservabilityPrisma().bandRoom.findMany({
       where: { organizationId, status: { not: "closed" } },
       select: { connectedAgents: true, messageCount: true, lastActivityAt: true },
     }),

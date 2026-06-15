@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 WORKDIR /app
-RUN apk add --no-cache libc6-compat openssl
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 COPY package.json package-lock.json ./
@@ -14,12 +16,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-RUN apk add --no-cache libc6-compat openssl
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

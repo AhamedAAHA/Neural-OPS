@@ -1,4 +1,6 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type Prisma } from "@prisma/client";
+import { Pool } from "pg";
 
 export function resolveDatabaseUrl() {
   const baseUrl =
@@ -28,8 +30,17 @@ export function createPrismaClient(
   log: Array<Prisma.LogLevel | Prisma.LogDefinition> = ["error"]
 ) {
   const connectionString = resolveDatabaseUrl();
-  if (connectionString) {
-    process.env.DATABASE_URL = connectionString;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL or DIRECT_URL is required to initialize Prisma.");
   }
-  return new PrismaClient({ log });
+
+  process.env.DATABASE_URL = connectionString;
+
+  const pool = new Pool({
+    connectionString,
+    maxUses: 1,
+  });
+  const adapter = new PrismaPg(pool);
+
+  return new PrismaClient({ adapter, log });
 }
