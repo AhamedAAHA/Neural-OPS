@@ -109,7 +109,7 @@ export function CreateIncidentModal({ open, onClose, onCreated }: CreateIncident
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="glass-premium hud-panel relative mx-4 w-full max-w-md rounded-2xl border border-cyan-500/25 p-5"
+            className="glass-premium hud-panel relative mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-cyan-500/25 p-5"
           >
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/15">

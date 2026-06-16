@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberBadge, CyberPanel } from "@/components/cyber/CyberPanel";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 
 interface DashboardPayload {
@@ -111,7 +112,8 @@ export function AIOpsView() {
         </CyberPanel>
 
         <CyberPanel title="Agent Model Routing" glow="emerald" className="lg:col-span-2">
-          <div className="overflow-x-auto">
+          <ScrollArea className="max-h-72">
+          <div className="overflow-x-auto pr-1">
             <table className="w-full font-mono text-[11px]">
               <thead>
                 <tr className="border-b border-cyan-500/10 text-left text-slate-500">
@@ -133,6 +135,7 @@ export function AIOpsView() {
               </tbody>
             </table>
           </div>
+          </ScrollArea>
         </CyberPanel>
       </div>
       {error && <div className="mt-2 font-mono text-[11px] text-red-300">{error}</div>}

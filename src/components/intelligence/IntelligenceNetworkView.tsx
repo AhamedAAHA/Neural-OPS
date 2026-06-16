@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { Globe, Radio, AlertTriangle, RefreshCw, Activity } from "lucide-react";
 import { Toast } from "@/components/ui/Toast";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 
 interface Signal {
@@ -152,8 +153,9 @@ export function IntelligenceNetworkView() {
   return (
     <AppShell title="Bright Data Intelligence Network" subtitle="Vendor · Reputation · Market · Third Party · Dark Web Intelligence">
       {toast && <Toast kind={toast.kind} message={toast.message} />}
-      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-3 p-3">
-        <div className="col-span-12 space-y-3 overflow-y-auto lg:col-span-4">
+      <div className="grid h-[calc(100vh-5.5rem)] min-h-0 grid-cols-12 gap-3 overflow-hidden p-3">
+        <ScrollArea className="col-span-12 min-h-0 lg:col-span-4">
+          <div className="space-y-3 pr-1">
           <CyberPanel title="Intelligence Agents" glow="amber" hover={false}>
             {(agents.length ? agents : [{ id: "intel", name: "Vendor Intelligence Agent", role: "External intelligence collection" }]).map((agent) => (
               <div key={agent.id} className="mb-2 rounded border border-amber-500/25 bg-amber-500/5 px-3 py-2.5 last:mb-0">
@@ -195,9 +197,10 @@ export function IntelligenceNetworkView() {
               <div>4. Open source links and escalate critical findings into the investigation room.</div>
             </div>
           </CyberPanel>
-        </div>
+          </div>
+        </ScrollArea>
 
-        <div className="col-span-12 flex flex-col gap-3 lg:col-span-8">
+        <div className="col-span-12 flex min-h-0 flex-col gap-3 overflow-hidden lg:col-span-8">
           <CyberPanel title="Investigate Vendor" glow="cyan" hover={false}>
             <div className="space-y-2">
               <select
@@ -248,7 +251,7 @@ export function IntelligenceNetworkView() {
             </div>
           </CyberPanel>
 
-          <CyberPanel title="Live Intelligence Feed" glow="amber" className="min-h-0 flex-1" hover={false}>
+          <CyberPanel title="Live Intelligence Feed" glow="amber" className="flex min-h-0 flex-1 flex-col overflow-hidden" hover={false}>
             <div className="mb-3 flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-400">
               <Globe className="h-4 w-4 text-amber-400" />
               <span>Live intelligence routed to investigation agents via Band</span>
@@ -267,7 +270,8 @@ export function IntelligenceNetworkView() {
                 Refresh
               </button>
             </div>
-            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-14rem)]">
+            <ScrollArea className="flex-1">
+            <div className="space-y-2 pr-1">
               {loadingSignals && <div className="font-mono text-[11px] text-slate-500">Loading intelligence...</div>}
               {!loadingSignals && !signals.length && (
                 <div className="rounded border border-amber-500/20 bg-amber-500/[0.05] p-3 font-mono text-[11px] text-amber-200">
@@ -324,6 +328,7 @@ export function IntelligenceNetworkView() {
                 </div>
               ) : null}
             </div>
+            </ScrollArea>
           </CyberPanel>
         </div>
       </div>

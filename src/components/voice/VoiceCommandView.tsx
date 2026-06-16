@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { NeonButton } from "@/components/ui/NeonButton";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useVoiceStore, useNeuralOpsStore } from "@/store/neural-ops";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 import { Mic, MicOff, ArrowRight, Radio, Bot } from "lucide-react";
@@ -114,8 +115,8 @@ export function VoiceCommandView() {
 
   return (
     <AppShell title="Voice Operations Center" subtitle="Speechmatics · Voice Investigation · Band Routing">
-      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-2">
-        <div className="col-span-5 flex flex-col gap-2">
+      <div className="grid h-[calc(100vh-5.5rem)] min-h-0 grid-cols-12 gap-2 overflow-hidden">
+        <ScrollArea className="col-span-5 flex flex-col gap-2 pr-1">
           <CyberPanel title="Live Transcript" glow="cyan" className="flex-1">
             <div className="mb-4 flex h-16 items-center justify-center gap-1">
               {waveform.map((h, i) => (
@@ -161,9 +162,9 @@ export function VoiceCommandView() {
               ))}
             </div>
           </CyberPanel>
-        </div>
+        </ScrollArea>
 
-        <div className="col-span-7 flex flex-col gap-2">
+        <div className="col-span-7 flex min-h-0 flex-col gap-2 overflow-hidden">
           <CyberPanel title="Routing Result" glow="violet">
             <div className="grid grid-cols-2 gap-3 font-mono text-[10px]">
               <div><span className="text-slate-600">Intent </span><span className="text-cyan-300">{intent || "—"}</span></div>
@@ -171,8 +172,9 @@ export function VoiceCommandView() {
             </div>
           </CyberPanel>
 
-          <CyberPanel title="Execution Flow" glow="cyan" className="flex-1">
-            <div className="space-y-3">
+          <CyberPanel title="Execution Flow" glow="cyan" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ScrollArea className="flex-1">
+              <div className="space-y-3 pr-1">
               {flow.map((item, i) => (
                 <div key={`${item.step}-${i}`} className="flex items-center gap-3 rounded border border-white/5 p-3">
                   <Radio className="h-4 w-4 text-cyan-400" />
@@ -184,7 +186,8 @@ export function VoiceCommandView() {
                 </div>
               ))}
               {!flow.length && <p className="font-mono text-[10px] text-slate-600">Execute a voice command to see live routing.</p>}
-            </div>
+              </div>
+            </ScrollArea>
             <div className="mt-4 flex items-center gap-2 font-mono text-[10px] text-slate-500">
               <Bot className="h-3.5 w-3.5 text-cyan-400" />
               Commands are persisted to audit logs and routed through Band agents.

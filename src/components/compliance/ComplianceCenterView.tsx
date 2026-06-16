@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle, Scale, Shield, XCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberBadge, CyberPanel } from "@/components/cyber/CyberPanel";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 import { messageTypeColor } from "@/lib/utils";
 
@@ -159,7 +160,8 @@ export function ComplianceCenterView() {
               <Shield className="h-4 w-4 text-cyan-400" />
               <CyberBadge label={`${findings.length} findings`} variant="amber" />
             </div>
-            <div className="space-y-2">
+            <ScrollArea className="max-h-64">
+              <div className="space-y-2 pr-1">
               {findings.map((finding) => (
                 <div key={finding.id} className="rounded border border-white/10 p-2">
                   <div className="mb-1 font-mono text-[11px] text-slate-200">{finding.finding}</div>
@@ -167,7 +169,8 @@ export function ComplianceCenterView() {
                   <div className="mt-1 font-mono text-[9px] text-slate-500">{finding.generatedByAgent.name} · {new Date(finding.createdAt).toLocaleString()}</div>
                 </div>
               ))}
-            </div>
+              </div>
+            </ScrollArea>
           </CyberPanel>
         ))}
       </div>
@@ -179,7 +182,8 @@ export function ComplianceCenterView() {
               <span className="text-xs text-slate-400">Legal Findings</span>
               <CyberBadge label={String(incident?.legalFindings.length ?? 0)} variant="violet" />
             </div>
-            <div className="space-y-2">
+            <ScrollArea className="max-h-48">
+              <div className="space-y-2 pr-1">
               {(incident?.legalFindings ?? []).slice(0, 3).map((finding) => (
                 <div key={finding.id} className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">
                   <div className="font-mono text-[10px] text-red-200">{finding.disclosureRequirement}</div>
@@ -187,8 +191,9 @@ export function ComplianceCenterView() {
                   <div className="mt-1 font-mono text-[9px] text-amber-300">Exposure {Math.round(finding.legalExposure)}%</div>
                 </div>
               ))}
-            </div>
-            <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500">
+              </div>
+            </ScrollArea>
+            <div className="mt-2 flex items-center gap-2 font-mono text-[10px] text-slate-500">
               <Scale className="h-3 w-3 text-violet-400" />
               Legal timeline updates from database events
             </div>
@@ -196,7 +201,8 @@ export function ComplianceCenterView() {
         </CyberPanel>
 
         <CyberPanel title="Policy Mapping" glow="cyan" className="lg:col-span-2">
-          <div className="overflow-x-auto">
+          <ScrollArea className="max-h-72">
+          <div className="overflow-x-auto pr-1">
             <table className="w-full font-mono text-[10px]">
               <thead>
                 <tr className="border-b border-cyan-500/10 text-left text-slate-500">
@@ -220,11 +226,13 @@ export function ComplianceCenterView() {
               </tbody>
             </table>
           </div>
+          </ScrollArea>
         </CyberPanel>
       </div>
 
       <CyberPanel title="Compliance and Legal Message Stream" glow="violet" className="mt-3">
-        <div className="space-y-2">
+        <ScrollArea className="max-h-96">
+        <div className="space-y-2 pr-1">
           {legalMessages.map((msg) => (
             <div key={msg.id} className={`rounded border p-3 ${messageTypeColor(msg.messageType as never)}`}>
               <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[10px]">
@@ -243,6 +251,7 @@ export function ComplianceCenterView() {
             </div>
           )}
         </div>
+        </ScrollArea>
       </CyberPanel>
       {loading && <div className="mt-2 font-mono text-[10px] text-slate-500">Loading compliance data...</div>}
       {error && <div className="mt-2 font-mono text-[10px] text-red-400">{error}</div>}

@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { CyberBadge, CyberPanel } from "@/components/cyber/CyberPanel";
 import { CreateIncidentModal } from "@/components/command-center/CreateIncidentModal";
 import { NeonButton } from "@/components/ui/NeonButton";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { messageTypeColor, severityColor } from "@/lib/utils";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 import { useRealtime } from "@/hooks/useRealtime";
@@ -266,7 +267,8 @@ export function CommandCenterView() {
               <Plus className="h-3.5 w-3.5" />
               New Incident
             </NeonButton>
-            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-1 pr-1">
               {incidents.map((incident) => {
                 const isActive = incident.id === selectedIncidentId;
                 return (
@@ -299,7 +301,8 @@ export function CommandCenterView() {
                   </NeonButton>
                 </div>
               )}
-            </div>
+              </div>
+            </ScrollArea>
           </CyberPanel>
         </div>
 
@@ -352,18 +355,21 @@ export function CommandCenterView() {
         <div className="col-span-2 flex min-h-0 flex-col gap-1.5 overflow-hidden">
           <CyberPanel title="Active Agents" compact glow="cyan" className="shrink-0">
             <div className="mb-1 font-mono text-[10px] font-medium text-cyan-400">{activeAgents.length} online</div>
-            <div className="flex flex-wrap gap-1">
-              {activeAgents.slice(0, 10).map((agent) => (
-                <span key={agent.id} className="inline-flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
-                  <span className="h-1 w-1 rounded-full bg-cyan-400" />
-                  {agent.name.split(" ")[0]}
-                </span>
-              ))}
-            </div>
+            <ScrollArea className="max-h-28">
+              <div className="flex flex-wrap gap-1 pr-1">
+                {activeAgents.map((agent) => (
+                  <span key={agent.id} className="inline-flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">
+                    <span className="h-1 w-1 rounded-full bg-cyan-400" />
+                    {agent.name.split(" ")[0]}
+                  </span>
+                ))}
+              </div>
+            </ScrollArea>
           </CyberPanel>
 
-          <CyberPanel title="Band Stream" compact glow="violet" className="min-h-0 flex-1 overflow-hidden">
-            <div className="max-h-[calc(100vh-22rem)] space-y-1 overflow-y-auto">
+          <CyberPanel title="Band Stream" compact glow="violet" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ScrollArea className="flex-1">
+              <div className="space-y-1 pr-1">
               {recentMessages.map((msg) => {
                 const badge = messageTypeBadge(msg.type);
                 return (
@@ -379,7 +385,8 @@ export function CommandCenterView() {
                 );
               })}
               {!recentMessages.length && <div className="font-mono text-[10px] text-slate-500">No messages yet.</div>}
-            </div>
+              </div>
+            </ScrollArea>
           </CyberPanel>
 
           <CyberPanel compact glow="red" className="shrink-0">

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { Toast } from "@/components/ui/Toast";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 
 interface ServiceMetric {
@@ -113,8 +114,8 @@ export function OperationsDashboardView() {
   return (
     <AppShell title="Operations Dashboard" subtitle="Sentry + OpenTelemetry + Runtime Metrics + Service Health">
       {toast && <Toast kind={toast.kind} message={toast.message} />}
-      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-3 p-3">
-        <div className="col-span-12 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid h-[calc(100vh-5.5rem)] min-h-0 grid-cols-12 gap-3 overflow-hidden p-3">
+        <div className="col-span-12 shrink-0 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <CyberPanel compact glow="cyan" hover={false}>
             <div className="font-mono text-[10px] text-slate-500">Error Rate</div>
             <div className="font-display text-2xl font-bold text-red-400">{dashboard?.metrics.errorRate ?? 0}%</div>
@@ -133,25 +134,10 @@ export function OperationsDashboardView() {
           </CyberPanel>
         </div>
 
-        <div className="col-span-12 lg:col-span-7">
-          <CyberPanel title="Live Health Indicators" glow="cyan" className="h-full" hover={false}>
-            {loading && <div className="font-mono text-xs text-slate-500">Loading health metrics...</div>}
-            {error && (
-              <div className="space-y-2">
-                <div className="font-mono text-xs text-red-400">{error}</div>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 font-mono text-[10px] text-red-300"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-            {!loading && !error && !serviceRows.length && (
-              <div className="font-mono text-xs text-slate-500">No monitoring data yet. Trigger API/agent activity to populate metrics.</div>
-            )}
-            <div className="space-y-2">
+        <div className="col-span-12 min-h-0 lg:col-span-7">
+          <CyberPanel title="Live Health Indicators" glow="cyan" className="flex h-full min-h-0 flex-col" hover={false}>
+            <ScrollArea className="flex-1">
+            <div className="space-y-2 pr-1">
               {serviceRows.map((row) => (
                 <div key={row.label} className="rounded border border-white/5 p-2.5">
                   <div className="mb-1 flex items-center justify-between">
@@ -166,12 +152,30 @@ export function OperationsDashboardView() {
                 </div>
               ))}
             </div>
+            </ScrollArea>
+            {loading && <div className="mt-2 font-mono text-xs text-slate-500">Loading health metrics...</div>}
+            {error && (
+              <div className="mt-2 space-y-2">
+                <div className="font-mono text-xs text-red-400">{error}</div>
+                <button
+                  type="button"
+                  onClick={() => void load()}
+                  className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 font-mono text-[10px] text-red-300"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {!loading && !error && !serviceRows.length && (
+              <div className="mt-2 font-mono text-xs text-slate-500">No monitoring data yet. Trigger API/agent activity to populate metrics.</div>
+            )}
           </CyberPanel>
         </div>
 
-        <div className="col-span-12 lg:col-span-5">
-          <CyberPanel title="Monitoring Events" glow="amber" className="h-full" hover={false}>
-            <div className="max-h-[calc(100vh-16rem)] space-y-2 overflow-y-auto">
+        <div className="col-span-12 min-h-0 lg:col-span-5">
+          <CyberPanel title="Monitoring Events" glow="amber" className="flex h-full min-h-0 flex-col" hover={false}>
+            <ScrollArea className="flex-1">
+            <div className="space-y-2 pr-1">
               {(dashboard?.latestEvents ?? []).map((event) => (
                 <div key={event.id} className="rounded border border-amber-500/20 bg-amber-500/[0.03] p-2.5">
                   <div className="mb-1 flex items-center gap-2">
@@ -190,6 +194,7 @@ export function OperationsDashboardView() {
                 <div className="font-mono text-xs text-slate-500">No monitoring events recorded yet.</div>
               )}
             </div>
+            </ScrollArea>
           </CyberPanel>
         </div>
       </div>

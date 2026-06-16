@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { useNeuralOpsStore } from "@/store/neural-ops";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TrendingDown, DollarSign, Scale, Shield, Users, Clock, Star } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from "recharts";
 
@@ -311,8 +312,9 @@ export function RiskSimulationView() {
 
   return (
     <AppShell title="Risk War-Game Simulator" subtitle={`Enterprise Risk Score ${activeRiskScore}/100 · Live scenario simulation`}>
-      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-2 overflow-hidden">
-        <div className="col-span-3 space-y-2 overflow-y-auto">
+      <div className="grid h-[calc(100vh-5.5rem)] min-h-0 grid-cols-12 gap-2 overflow-hidden">
+        <ScrollArea className="col-span-3 min-h-0">
+          <div className="space-y-2 pr-1">
           <CyberPanel title="Incident" compact glow="cyan">
             <select
               value={selectedIncidentId ?? ""}
@@ -383,9 +385,11 @@ export function RiskSimulationView() {
           {!simulation && selectedIncidentId && !loading && (
             <p className="font-mono text-[10px] text-amber-300">Waiting for live simulation output. Showing fallback risk model.</p>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
-        <div className="col-span-5 space-y-2 overflow-y-auto">
+        <ScrollArea className="col-span-5 min-h-0">
+          <div className="space-y-2 pr-1">
           <CyberPanel title={selected.title} glow="red">
             <p className="mb-3 font-mono text-[10px] text-slate-400">{selected.description}</p>
             <div className="grid grid-cols-2 gap-2">
@@ -429,9 +433,11 @@ export function RiskSimulationView() {
               </RadarChart>
             </ResponsiveContainer>
           </CyberPanel>
-        </div>
+          </div>
+        </ScrollArea>
 
-        <div className="col-span-4 space-y-2 overflow-y-auto">
+        <ScrollArea className="col-span-4 min-h-0">
+          <div className="space-y-2 pr-1">
           <CyberPanel title="Scenario Comparison" glow="cyan">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={compareData}>
@@ -451,7 +457,8 @@ export function RiskSimulationView() {
               <p className="text-emerald-300">Executive Agent: {impacts.financial >= 1000000 ? "Prioritize cash protection actions and board-level escalation." : "Proceed with controlled remediation and stakeholder transparency."}</p>
             </motion.div>
           </CyberPanel>
-        </div>
+          </div>
+        </ScrollArea>
       </div>
     </AppShell>
   );

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { Toast } from "@/components/ui/Toast";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { fetchJsonWithRetry, fetchWithRetry } from "@/lib/http/retry";
 import { ReactFlow, Background, Controls, MarkerType, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -212,8 +213,9 @@ export function WorkflowBuilderView() {
   return (
     <AppShell title="Workflow Builder" subtitle="Trigger-driven enterprise automation with execution history">
       {toast && <Toast kind={toast.kind} message={toast.message} />}
-      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-3 p-3">
-        <div className="col-span-12 space-y-3 lg:col-span-4">
+      <div className="grid h-[calc(100vh-5.5rem)] min-h-0 grid-cols-12 gap-3 overflow-hidden p-3">
+        <ScrollArea className="col-span-12 min-h-0 lg:col-span-4">
+          <div className="space-y-3 pr-1">
           <CyberPanel title="Create Workflow" glow="cyan" hover={false}>
             <div className="space-y-2">
               <input
@@ -286,8 +288,9 @@ export function WorkflowBuilderView() {
             </div>
           </CyberPanel>
 
-          <CyberPanel title="Stored Workflows" glow="violet" className="h-[calc(100vh-23rem)]" hover={false}>
-            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-28rem)]">
+          <CyberPanel title="Stored Workflows" glow="violet" hover={false}>
+            <ScrollArea className="max-h-64">
+            <div className="space-y-2 pr-1">
               {loading && <div className="font-mono text-xs text-slate-500">Loading workflows...</div>}
               {!loading && !workflows.length && <div className="font-mono text-xs text-slate-500">No workflows configured.</div>}
               {workflows.map((workflow) => (
@@ -316,10 +319,12 @@ export function WorkflowBuilderView() {
                 </div>
               ))}
             </div>
+            </ScrollArea>
           </CyberPanel>
-        </div>
+          </div>
+        </ScrollArea>
 
-        <div className="col-span-12 lg:col-span-5">
+        <div className="col-span-12 min-h-0 lg:col-span-5">
           <CyberPanel title="Visual Workflow Designer" glow="amber" className="h-full" noPadding hover={false}>
             <div className="h-[calc(100vh-10.5rem)] w-full">
               <ReactFlow
@@ -342,8 +347,8 @@ export function WorkflowBuilderView() {
           </CyberPanel>
         </div>
 
-        <div className="col-span-12 lg:col-span-3">
-          <CyberPanel title="Execution History" glow="red" className="h-full" hover={false}>
+        <div className="col-span-12 min-h-0 lg:col-span-3">
+          <CyberPanel title="Execution History" glow="red" className="flex h-full min-h-0 flex-col" hover={false}>
             {error && (
               <div className="mb-2">
                 <div className="font-mono text-[11px] text-red-400">{error}</div>
@@ -356,7 +361,8 @@ export function WorkflowBuilderView() {
                 </button>
               </div>
             )}
-            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-13rem)]">
+            <ScrollArea className="flex-1">
+            <div className="space-y-2 pr-1">
               {!history.length && !loading && <div className="font-mono text-xs text-slate-500">No executions yet.</div>}
               {history.map((entry) => (
                 <div key={entry.id} className="rounded border border-white/5 p-2.5">
@@ -373,6 +379,7 @@ export function WorkflowBuilderView() {
                 </div>
               ))}
             </div>
+            </ScrollArea>
           </CyberPanel>
         </div>
       </div>

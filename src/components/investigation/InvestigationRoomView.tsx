@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { CyberBadge, CyberPanel } from "@/components/cyber/CyberPanel";
 import { JsonViewer } from "@/components/cyber/JsonViewer";
 import { NeonButton } from "@/components/ui/NeonButton";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { fetchJsonWithRetry } from "@/lib/http/retry";
 import { formatTimestamp, messageTypeColor } from "@/lib/utils";
 import { useRealtime } from "@/hooks/useRealtime";
@@ -143,8 +144,8 @@ export function InvestigationRoomView() {
 
   return (
     <AppShell title="Investigation Room" subtitle={`${room?.name ?? "No room"} · Live collaboration`} fullWidth>
-      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-2 p-2">
-        <div className="col-span-2 flex flex-col gap-2 overflow-hidden">
+      <div className="grid h-[calc(100vh-5.5rem)] min-h-0 grid-cols-12 gap-2 overflow-hidden p-2">
+        <div className="col-span-2 flex min-h-0 flex-col gap-2 overflow-hidden">
           <CyberPanel title="Incident" compact glow="cyan">
             <select
               value={incidentId}
@@ -156,8 +157,9 @@ export function InvestigationRoomView() {
               ))}
             </select>
           </CyberPanel>
-          <CyberPanel title="Room Agents" compact glow="cyan" className="flex-1 overflow-hidden">
-            <div className="max-h-[calc(100vh-16rem)] space-y-1.5 overflow-y-auto">
+          <CyberPanel title="Room Agents" compact glow="cyan" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ScrollArea className="flex-1">
+              <div className="space-y-1.5 pr-1">
               {roomAgents.map((agent) => (
                 <motion.button
                   key={agent.id}
@@ -174,7 +176,8 @@ export function InvestigationRoomView() {
                   </div>
                 </motion.button>
               ))}
-            </div>
+              </div>
+            </ScrollArea>
           </CyberPanel>
           <CyberPanel compact glow="amber">
             <div className="flex items-center gap-2 font-mono text-[10px]">
@@ -184,9 +187,10 @@ export function InvestigationRoomView() {
           </CyberPanel>
         </div>
 
-        <div className="col-span-7 flex flex-col overflow-hidden">
-          <CyberPanel title="Band Collaboration Stream" subtitle="Database-backed agent messages" glow="cyan" className="flex h-full flex-col" noPadding>
-            <div className="flex-1 space-y-2 overflow-y-auto p-3">
+        <div className="col-span-7 flex min-h-0 flex-col overflow-hidden">
+          <CyberPanel title="Band Collaboration Stream" subtitle="Database-backed agent messages" glow="cyan" className="flex h-full min-h-0 flex-col overflow-hidden" noPadding>
+            <ScrollArea className="flex-1">
+            <div className="space-y-2 p-3 pr-1">
               <AnimatePresence>
                 {roomMessages.map((msg, index) => {
                   const Icon = MESSAGE_ICONS[msg.messageType] ?? Bot;
@@ -227,22 +231,28 @@ export function InvestigationRoomView() {
               </AnimatePresence>
               {!roomMessages.length && !loading && <p className="font-mono text-[11px] text-slate-500">No room messages yet.</p>}
             </div>
+            </ScrollArea>
           </CyberPanel>
         </div>
 
-        <div className="col-span-3 flex flex-col gap-2 overflow-hidden">
+        <div className="col-span-3 flex min-h-0 flex-col gap-2 overflow-hidden">
           <CyberPanel title="Task Handoffs" compact glow="violet">
-            {handoffs.map((handoff) => (
-              <div key={handoff.id} className="mb-2 rounded border border-violet-500/20 p-2 last:mb-0">
-                <div className="font-mono text-[9px] text-violet-400">{handoff.fromAgent.name} → {handoff.toAgent.name}</div>
-                <div className="font-mono text-[10px] text-slate-400">{handoff.taskTitle}</div>
+            <ScrollArea className="max-h-36">
+              <div className="space-y-2 pr-1">
+                {handoffs.map((handoff) => (
+                  <div key={handoff.id} className="rounded border border-violet-500/20 p-2">
+                    <div className="font-mono text-[9px] text-violet-400">{handoff.fromAgent.name} → {handoff.toAgent.name}</div>
+                    <div className="font-mono text-[10px] text-slate-400">{handoff.taskTitle}</div>
+                  </div>
+                ))}
+                {!handoffs.length && <div className="font-mono text-[10px] text-slate-500">No handoffs recorded.</div>}
               </div>
-            ))}
-            {!handoffs.length && <div className="font-mono text-[10px] text-slate-500">No handoffs recorded.</div>}
+            </ScrollArea>
           </CyberPanel>
 
-          <CyberPanel title="Evidence Queue" compact glow="emerald" className="flex-1 overflow-hidden">
-            <div className="space-y-1.5 overflow-y-auto">
+          <CyberPanel title="Evidence Queue" compact glow="emerald" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ScrollArea className="flex-1">
+              <div className="space-y-1.5 pr-1">
               {evidence.map((item) => (
                 <div key={item.id} className="rounded border border-emerald-500/20 p-2">
                   <div className="font-mono text-[10px] text-white">{item.title}</div>
@@ -253,7 +263,8 @@ export function InvestigationRoomView() {
                 </div>
               ))}
               {!evidence.length && <div className="font-mono text-[10px] text-slate-500">No evidence yet.</div>}
-            </div>
+              </div>
+            </ScrollArea>
           </CyberPanel>
 
           <CyberPanel compact>

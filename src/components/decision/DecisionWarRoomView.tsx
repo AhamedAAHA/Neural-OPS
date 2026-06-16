@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { CyberPanel, CyberBadge } from "@/components/cyber/CyberPanel";
 import { NeonButton } from "@/components/ui/NeonButton";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Toast } from "@/components/ui/Toast";
 import { Bot, Scale, DollarSign, Shield, Users, TrendingDown, Building2, Star, Loader2, CheckCircle2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -182,8 +183,9 @@ export function DecisionWarRoomView() {
   return (
     <AppShell title="Decision War Room" subtitle="Live executive decision engine from investigation data" fullWidth>
       {toast && <Toast message={toast.message} kind={toast.kind} />}
-      <div className="grid h-[calc(100vh-5.5rem)] grid-cols-12 gap-3 p-3">
-        <div className="col-span-12 lg:col-span-3 space-y-3 overflow-y-auto">
+      <div className="grid h-[calc(100vh-5.5rem)] min-h-0 grid-cols-12 gap-3 overflow-hidden p-3">
+        <ScrollArea className="col-span-12 h-full max-h-[calc(100vh-5.5rem)] min-h-0 lg:col-span-3">
+          <div className="space-y-3 pr-1">
           <CyberPanel title="Incident" glow="cyan" hover={false}>
             <select
               value={incidentId}
@@ -220,9 +222,11 @@ export function DecisionWarRoomView() {
               </button>
             ))}
           </CyberPanel>
-        </div>
+          </div>
+        </ScrollArea>
 
-        <div className="col-span-12 lg:col-span-6 space-y-3 overflow-y-auto">
+        <ScrollArea className="col-span-12 h-full max-h-[calc(100vh-5.5rem)] min-h-0 lg:col-span-6">
+          <div className="space-y-3 pr-1">
           <CyberPanel title={`Agent Debate: ${selected?.label ?? "Decision Model"}`} glow="violet" hover={false}>
             <p className="mb-4 font-mono text-[11px] leading-relaxed text-slate-400">{selected?.rationale ?? "Decision recommendation is being generated from live incident data."}</p>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -272,9 +276,11 @@ export function DecisionWarRoomView() {
               </BarChart>
             </ResponsiveContainer>
           </CyberPanel>
-        </div>
+          </div>
+        </ScrollArea>
 
-        <div className="col-span-12 lg:col-span-3 space-y-3">
+        <ScrollArea className="col-span-12 h-full max-h-[calc(100vh-5.5rem)] min-h-0 lg:col-span-3">
+          <div className="space-y-3 pr-1">
           <CyberPanel title="Recommendation Ranking" glow="emerald" hover={false}>
             {(decision?.ranking ?? []).map((entry, i) => (
               <div key={entry.id} className="mb-2 flex items-center gap-2 font-mono text-[11px] last:mb-0">
@@ -359,7 +365,8 @@ export function DecisionWarRoomView() {
           <NeonButton href="/investigation" size="sm" variant="secondary" className="w-full font-mono text-[10px]">
             Return to Investigation
           </NeonButton>
-        </div>
+          </div>
+        </ScrollArea>
       </div>
     </AppShell>
   );
